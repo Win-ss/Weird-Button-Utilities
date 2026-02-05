@@ -1,0 +1,70 @@
+plugins {
+	id 'fabric-loom' version '1.8-SNAPSHOT'
+	id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+}
+
+processResources {
+	inputs.property "version", project.version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": project.version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+}
+
+java {
+	withSourcesJar()
+
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+	from("LICENSE") {
+		rename { "${it}_${project.archivesBaseName}"}
+	}
+}
+
+base {
+    archivesName = project.archives_base_name
+}
+
+task bumpVersion {
+    doLast {
+        def propsFile = file('gradle.properties')
+        def props = new Properties()
+        propsFile.withInputStream { props.load(it) }
+        
+        def currentVersion = props.getProperty('mod_version') ?: '0.0'
+        def nextVersion = (currentVersion.toDouble() + 0.1).round(2)
+        
+        props.setProperty('mod_version', nextVersion.toString())
+        
+        def content = propsFile.text
+        content = content.replaceFirst(/mod_version=.*/, "mod_version=${nextVersion}")
+        propsFile.text = content
+        
+        println "Bumped version from ${currentVersion} to ${nextVersion}"
+    }
+}

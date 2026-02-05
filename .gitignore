@@ -1,0 +1,31 @@
+# gradle
+.gradle/
+build/
+out/
+classes/
+gradlew.bat
+/gradle
+# idea
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# vscode
+.settings/
+.vscode/
+bin/
+.classpath
+.project
+
+# fabric
+run/
+logs/
+
+# other
+*.log
+*.jar
+*.js
+*.md
+*.txt
+/.github

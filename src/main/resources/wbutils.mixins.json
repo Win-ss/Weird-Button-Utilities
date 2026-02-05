@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.winss.wbutils.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "InGameHudMixin",
+    "ClientPlayNetworkHandlerMixin",
+    "ChatMessageMixin",
+    "KeyboardInputMixin",
+    "MouseMixin",
+    "ClientPlayerEntityMixin",
+    "PlayerListHudAccessor",
+    "DisconnectedScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

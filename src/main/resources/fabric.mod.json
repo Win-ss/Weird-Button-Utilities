@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "wbutils",
+  "version": "${version}",
+  "name": "WBUtils",
+  "description": "util mod for dptb2 housing with a few features",
+  "authors": [
+    "Winss"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/wbutils/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "com.winss.wbutils.WBUtilsClient"
+    ]
+  },
+  "mixins": [
+    "wbutils.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": ">=1.21.4 <=1.21.10",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
