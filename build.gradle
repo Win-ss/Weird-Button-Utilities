@@ -57,7 +57,7 @@ task bumpVersion {
         propsFile.withInputStream { props.load(it) }
         
         def currentVersion = props.getProperty('mod_version') ?: '0.0'
-        def nextVersion = (currentVersion.toDouble() + 0.1).round(2)
+        def nextVersion = (currentVersion.toDouble() + 0.01).round(2)
         
         props.setProperty('mod_version', nextVersion.toString())
         
