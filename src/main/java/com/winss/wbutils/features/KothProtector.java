@@ -95,12 +95,18 @@ public class KothProtector {
         
 
         java.util.List<String> nearbyPlayers = new java.util.ArrayList<>();
+        ModUserManager modUserManager = WBUtilsClient.getModUserManager();
         if (client.world != null) {
             for (AbstractClientPlayerEntity otherPlayer : client.world.getPlayers()) {
                 if (otherPlayer == player) continue;
+                // skip mod users since they are friendly, hopefully...
+                String otherName = otherPlayer.getName().getString();
+                if (modUserManager != null && modUserManager.isModUser(otherName)) {
+                    continue;
+                }
                 double dist = player.distanceTo(otherPlayer);
                 if (dist <= 5.0) {
-                    nearbyPlayers.add(otherPlayer.getName().getString() + " (" + String.format("%.1f", dist) + "m)");
+                    nearbyPlayers.add(otherName + " (" + String.format("%.1f", dist) + "m)");
                 }
             }
         }
