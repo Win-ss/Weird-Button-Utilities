@@ -72,7 +72,7 @@ public class QuestHelper {
                 
                 if (client.player != null) {
                     client.player.sendMessage(
-                        net.minecraft.text.Text.literal("§c[WBUtils] Quest menu didn't open. Make sure you have the menu item in slot 9."),
+                        net.minecraft.text.Text.literal(com.winss.wbutils.Messages.get("helper.quest.title_error")),
                         false
                     );
                 }

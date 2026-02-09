@@ -81,7 +81,7 @@ public class ShopHelper {
 
                     if (client.player != null) {
                         client.player.sendMessage(
-                            net.minecraft.text.Text.literal("§c[WBUtils] Shop menu didn't open. Make sure you have the menu item in slot 9."),
+                            net.minecraft.text.Text.literal(com.winss.wbutils.Messages.get("helper.shop.title_error")),
                             false
                         );
                     }

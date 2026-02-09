@@ -282,7 +282,7 @@ public class AuthService {
         String baseUrl = config.authServerUrl;
         
         if (baseUrl == null || baseUrl.isBlank()) {
-            logger.accept("§cError: No auth server URL configured!");
+            logger.accept(Messages.get("auth.error.no_url"));
             return;
         }
         
@@ -296,7 +296,7 @@ public class AuthService {
             "/rps/stats"
         };
         
-        logger.accept("§9[Diagnostics] Testing server: " + baseUrl);
+        logger.accept(Messages.format("auth.diag.testing", "url", baseUrl));
         
         CompletableFuture.runAsync(() -> {
             for (String endpoint : getEndpoints) {
@@ -306,14 +306,16 @@ public class AuthService {
                 NetworkManager.get(urlStr, false, config.authToken).thenAccept(response -> {
                     long duration = System.currentTimeMillis() - start;
                     int code = response.statusCode();
-                    String status = (code >= 200 && code < 400) ? "§aOK" : "§cERR(" + code + ")";
-                    logger.accept(String.format("§7- %-15s %s §8(%dms)", endpoint, status, duration));
+                    String status = (code >= 200 && code < 400) ? Messages.get("status.ok") : Messages.format("status.error", "code", String.valueOf(code));
+                    logger.accept(Messages.format("auth.diag.endpoint", 
+                        "endpoint", endpoint, "status", status, "duration", String.valueOf(duration)));
                 }).exceptionally(e -> {
-                    logger.accept("§7- §f" + endpoint + " §cFAILED: " + e.getMessage());
+                    logger.accept(Messages.format("auth.diag.failed", 
+                        "endpoint", endpoint, "error", e.getMessage()));
                     return null;
                 }).join();
             }
-            logger.accept("§9[Diagnostics] Complete.");
+            logger.accept(Messages.get("auth.diag.complete"));
         });
     }
 
@@ -348,7 +350,7 @@ public class AuthService {
         runOnMainThread(() -> {
             MinecraftClient client = MinecraftClient.getInstance();
             if (client.player != null) {
-                client.player.sendMessage(Text.literal("§9[WBUtils] §c§lALERT: Lost connection to auth server! §7Features may be limited."), false);
+                client.player.sendMessage(Text.literal(Messages.get("auth.connection.lost")), false);
             }
         });
     }
@@ -357,7 +359,7 @@ public class AuthService {
         runOnMainThread(() -> {
             MinecraftClient client = MinecraftClient.getInstance();
             if (client.player != null) {
-                client.player.sendMessage(Text.literal("§9[WBUtils] §a§lConnection restored to auth server."), false);
+                client.player.sendMessage(Text.literal(Messages.get("auth.connection.restored")), false);
             }
         });
     }

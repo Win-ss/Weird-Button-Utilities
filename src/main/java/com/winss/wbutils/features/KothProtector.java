@@ -178,13 +178,13 @@ public class KothProtector {
                     sendAlert(config, exitTitle, Messages.get("webhook.exit.description"), 0xFFA500, true);
                     
                     if (config.kothDebugLogs) {
-                        sendDebug(player, Messages.getColorAccent() + Messages.get("debug.left") + " while AFK! Alert sent.");
+                        sendDebug(player, Messages.getColorAccent() + Messages.get("debug.left") + Messages.get("koth.debug.left_afk"));
                     }
                 } else if (config.kothDebugLogs) {
-                    sendDebug(player, "§7Left KOTH with recent input (" + timeSinceInput + "ms ago) - no ping");
+                    sendDebug(player, Messages.format("koth.debug.left_recent_input", "ms", String.valueOf(timeSinceInput)));
                 }
             } else if (kothEntryTime != 0L && config.kothDebugLogs) {
-                sendDebug(player, "§cLeft KOTH");
+                sendDebug(player, Messages.get("koth.debug.left"));
             }
             kothEntryTime = 0L;
             entryNotified = false;
@@ -204,7 +204,7 @@ public class KothProtector {
 
             sendAlert(config, entryTitle, entryDesc, 0x2ECC71, false);
             if (config.kothDebugLogs) {
-                sendDebug(player, Messages.getColorAccent() + Messages.get("debug.entered") + " (entry alert sent)");
+                sendDebug(player, Messages.getColorAccent() + Messages.get("debug.entered") + Messages.get("koth.debug.entered_alert"));
             }
         }
     }
@@ -231,7 +231,7 @@ public class KothProtector {
             if (client.player != null) {
                 String cleaned = plain.replaceAll("§[0-9a-fk-or]", "");
                 if (!cleaned.trim().isEmpty()) {
-                    sendDebug(client.player, "§7[Title received] " + truncate(cleaned, 70));
+                    sendDebug(client.player, Messages.format("koth.debug.title_received", "title", truncate(cleaned, 70)));
                 }
             }
         }
@@ -240,7 +240,7 @@ public class KothProtector {
             lastKothTitleTime = Util.getMeasuringTimeMs();
             if (config.kothDebugLogs && client.player != null) {
                 String cleaned = plain.replaceAll("§[0-9a-fk-or]", "");
-                sendDebug(client.player, Messages.getColorAccent() + "✓ KOTH: " + truncate(cleaned, 40));
+                sendDebug(client.player, Messages.getColorAccent() + Messages.format("koth.debug.indicator", "title", truncate(cleaned, 40)));
             }
         }
     }
@@ -292,8 +292,8 @@ public class KothProtector {
             WBUtilsClient.LOGGER.info("[KothProtector] deathNotificationSent: {}", deathNotificationSent);
             
             if (client.player != null) {
-                client.player.sendMessage(Text.literal("§d[DEBUG:Bounty] Checking: '" + stripped + "'"), false);
-                client.player.sendMessage(Text.literal("§d[DEBUG:Bounty] Pattern match: " + pattern2Match), false);
+                client.player.sendMessage(Text.literal(Messages.format("koth.debug.bounty_checking", "msg", stripped)), false);
+                client.player.sendMessage(Text.literal(Messages.format("koth.debug.bounty_match", "match", String.valueOf(pattern2Match))), false);
             }
         }
 
@@ -307,10 +307,10 @@ public class KothProtector {
             if (config.debugBounty) {
                 WBUtilsClient.LOGGER.info("[KothProtector] Bounty message detected! recentlyInKoth={}", recentlyInKoth);
                 if (client.player != null) {
-                    client.player.sendMessage(Text.literal("§d[DEBUG:Bounty] Detection:"), false);
-                    client.player.sendMessage(Text.literal("§7- Message: \"" + stripped + "\""), false);
-                    client.player.sendMessage(Text.literal("§7- recentlyInKoth: " + recentlyInKoth), false);
-                    client.player.sendMessage(Text.literal("§7- In KOTH: " + isInKoth()), false);
+                    client.player.sendMessage(Text.literal(Messages.format("koth.debug.bounty_details",
+                        "msg", stripped,
+                        "recent", String.valueOf(recentlyInKoth),
+                        "inkoth", String.valueOf(isInKoth()))), false);
                 }
             }
             
@@ -320,19 +320,19 @@ public class KothProtector {
                 if (config.debugBounty) {
                     WBUtilsClient.LOGGER.info("[KothProtector] Calling killTracker.onPlayerDiedInKoth()");
                     if (client.player != null) {
-                        client.player.sendMessage(Text.literal("§d[DEBUG:Bounty] Calling killTracker.onPlayerDiedInKoth()"), false);
+                        client.player.sendMessage(Text.literal(Messages.get("koth.debug.bounty_calling")), false);
                     }
                 }
                 killTracker.onPlayerDiedInKoth();
             } else if (killTracker != null && config.debugBounty) {
                 WBUtilsClient.LOGGER.info("[KothProtector] Bounty detected but NOT recently in KOTH - not calling killTracker");
                 if (client.player != null) {
-                    client.player.sendMessage(Text.literal("§e[DEBUG:Bounty] Bounty detected but NOT recently in KOTH"), false);
+                    client.player.sendMessage(Text.literal(Messages.get("koth.debug.bounty_not_recent")), false);
                 }
             } else if (killTracker == null) {
                 WBUtilsClient.LOGGER.warn("[KothProtector] KillTracker is null!");
                 if (config.debugBounty && client.player != null) {
-                    client.player.sendMessage(Text.literal("§c[DEBUG:Bounty] ERROR: KillTracker is null!"), false);
+                    client.player.sendMessage(Text.literal(Messages.get("koth.debug.bounty_error_null")), false);
                 }
             }
             
@@ -348,12 +348,12 @@ public class KothProtector {
                     sendAlert(config, deathTitle, deathDesc, 0xFF0000, true);
                     
                     if (config.debugKothState) {
-                        sendDebug(player, Messages.getColorAccent() + Messages.get("debug.death_detected") + " (carrying " + goldBlocks + " gold)");
+                        sendDebug(player, Messages.getColorAccent() + Messages.get("debug.death_detected") + Messages.format("koth.debug.death_carrying", "gold", String.valueOf(goldBlocks)));
                     }
                 }
             } else if (config.debugBounty) {
                 if (client.player != null) {
-                    sendDebug(client.player, "§7Death bounty detected but not in KOTH (" + (now - lastKothTitleTime) + "ms ago)");
+                    sendDebug(client.player, Messages.format("koth.debug.death_bounty_not_inkoth", "ms", String.valueOf(now - lastKothTitleTime)));
                 }
             }
         }
@@ -498,8 +498,7 @@ public class KothProtector {
             return;
         }
         MutableText text = Text.empty()
-            .append(Text.literal("[KOTH Debug] ").formatted(Formatting.DARK_GRAY))
-            .append(Text.literal(message).formatted(Formatting.GRAY));
+            .append(Text.literal(message));
         player.sendMessage(text, false);
         WBUtilsClient.LOGGER.debug("[KOTH Debug] {}", message);
     }
@@ -528,7 +527,7 @@ public class KothProtector {
             client.execute(() -> {
                 ClientPlayerEntity player = client.player;
                 if (player != null) {
-                    sendDebug(player, "Sending test alert via Discord DM...");
+                    sendDebug(player, Messages.get("koth.debug.test_msg"));
                 }
             });
             
@@ -579,7 +578,7 @@ public class KothProtector {
         client.execute(() -> {
             ClientPlayerEntity player = client.player;
             if (player != null) {
-                sendDebug(player, "Sending webhook test ping (fallback)...");
+                sendDebug(player, Messages.get("koth.debug.test_fallback"));
             }
         });
 

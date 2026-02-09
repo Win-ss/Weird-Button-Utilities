@@ -136,7 +136,7 @@ public class KillTracker {
 
         // Suppress local message if whitelisted
         if (!isWhitelisted(attacker)) {
-            sendDebugAlways(player, "§c[DMG TRACK] Attacker: §f" + attacker + "§c (damage: " + String.format("%.1f", amount) + ")");
+            sendDebugAlways(player, Messages.format("ktrack.debug.dmg_track", "player", attacker, "damage", String.format("%.1f", amount)));
         } else if (config.ktrackDebugLogs) {
             WBUtilsClient.LOGGER.info("[KillTracker] Suppressing local damage message for whitelisted attacker: {}", attacker);
         }
@@ -179,7 +179,7 @@ public class KillTracker {
         }
         
         if (killer == null || killer.isEmpty()) {
-            sendDebugAlways(player, "§c[KTrack] Took damage but no attacker found nearby!");
+            sendDebugAlways(player, Messages.get("ktrack.debug.no_attacker"));
             return;
         }
         
@@ -188,7 +188,7 @@ public class KillTracker {
         ModUserManager modUserManager = WBUtilsClient.getModUserManager();
         if (modUserManager != null && modUserManager.isModUser(killer)) {
             if (config.ktrackDebugLogs) {
-                sendDebugAlways(player, "§e[KTrack] Skipping mod user: " + killer);
+                sendDebugAlways(player, Messages.format("ktrack.debug.skip_mod_user", "player", killer));
             }
             return;
         }
@@ -216,10 +216,14 @@ public class KillTracker {
         damageAmountPerPlayer.put(plainKiller, currentAccumulated);
         damageTimePerPlayer.put(plainKiller, now);
         
-        sendDebugAlways(player, "§7[KTrack] Damage from §c" + killer + "§7 (acc: " + String.format("%.1f", currentAccumulated) + "/" + config.ktrackDamageThreshold + ", HP: " + String.format("%.1f", player.getHealth()) + ")");
+        sendDebugAlways(player, Messages.format("ktrack.debug.dmg_event", 
+            "player", killer, 
+            "acc", String.format("%.1f", currentAccumulated), 
+            "threshold", String.valueOf(config.ktrackDamageThreshold), 
+            "hp", String.format("%.1f", player.getHealth())));
         
         if (currentAccumulated >= config.ktrackDamageThreshold) {
-            sendDebugAlways(player, "§a[KTrack] Damage threshold (" + config.ktrackDamageThreshold + " HP) reached! Reporting damage event...");
+            sendDebugAlways(player, Messages.format("ktrack.debug.threshold_reached", "threshold", String.valueOf(config.ktrackDamageThreshold)));
             reportKTrackEvent(killer, player.getGameProfile().getName(), "damage");
             damageAmountPerPlayer.put(plainKiller, 0f);
         }
@@ -272,27 +276,34 @@ public class KillTracker {
         if (currentHealth <= 2.0f && lastKnownHealth > 5.0f) {
             possibleDeath = true;
             deathMethod = "LOW_HEALTH";
-            sendDebugAlways(player, "§c§l[DEATH] Low health detected! " + String.format("%.1f", lastKnownHealth) + " -> " + String.format("%.1f", currentHealth));
+            sendDebugAlways(player, Messages.format("ktrack.debug.death_low_hp", 
+                "old", String.format("%.1f", lastKnownHealth), 
+                "new", String.format("%.1f", currentHealth)));
         }
         
         if (currentHealth >= 15.0f && lastKnownHealth <= 5.0f && lastKnownHealth > 0) {
             possibleDeath = true;
             deathMethod = "RESPAWN";
-            sendDebugAlways(player, "§c§l[DEATH] Respawn detected! " + String.format("%.1f", lastKnownHealth) + " -> " + String.format("%.1f", currentHealth));
+            sendDebugAlways(player, Messages.format("ktrack.debug.death_respawn", 
+                "old", String.format("%.1f", lastKnownHealth), 
+                "new", String.format("%.1f", currentHealth)));
         }
         
         float healthDelta = lastKnownHealth - currentHealth;
         if (healthDelta >= 10.0f && currentHealth <= 10.0f) {
             possibleDeath = true;
             deathMethod = "BIG_HIT";
-            sendDebugAlways(player, "§c§l[DEATH] Big hit detected! " + String.format("%.1f", lastKnownHealth) + " -> " + String.format("%.1f", currentHealth) + " (delta: " + String.format("%.1f", healthDelta) + ")");
+            sendDebugAlways(player, Messages.format("ktrack.debug.death_big_hit", 
+                "old", String.format("%.1f", lastKnownHealth), 
+                "new", String.format("%.1f", currentHealth), 
+                "delta", String.format("%.1f", healthDelta)));
         }
         
         if (possibleDeath && !deathReportedThisCycle && (now - lastDeathReportTime) > DEATH_REPORT_COOLDOWN_MS) {
             deathReportedThisCycle = true;
             lastDeathReportTime = now;
             
-            sendDebugAlways(player, "§a[KTrack] Death confirmed via " + deathMethod + ", attributing kill...");
+            sendDebugAlways(player, Messages.format("ktrack.debug.death_confirmed", "method", deathMethod));
             
 
             reportDeathWithAttacker(player);
@@ -311,23 +322,12 @@ public class KillTracker {
         if (client.world == null) return;
         
         StringBuilder sb = new StringBuilder();
-        sb.append("§b[KTrack Status] ");
-        sb.append("HP: §f").append(String.format("%.1f", currentHealth));
-        sb.append("§b | Attackers: §f");
-        
-        if (recentAttackers.isEmpty()) {
-            sb.append("none");
-        } else {
-            List<String> attackerList = new ArrayList<>();
-            for (Map.Entry<String, Long> entry : recentAttackers.entrySet()) {
-                long age = (now - entry.getValue()) / 1000;
-                attackerList.add(entry.getKey() + "(" + age + "s ago)");
-            }
-            sb.append(String.join(", ", attackerList));
+        List<String> attackerList = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : recentAttackers.entrySet()) {
+            long age = (now - entry.getValue()) / 1000;
+            attackerList.add(entry.getKey() + "(" + age + "s ago)");
         }
-        
 
-        sb.append("§b | Nearby: §f");
         List<String> nearby = new ArrayList<>();
         for (AbstractClientPlayerEntity otherPlayer : client.world.getPlayers()) {
             if (otherPlayer == player) continue;
@@ -336,39 +336,41 @@ public class KillTracker {
                 nearby.add(otherPlayer.getName().getString() + "(" + String.format("%.1f", dist) + "m)");
             }
         }
-        if (nearby.isEmpty()) {
-            sb.append("none within 20m");
-        } else {
-            sb.append(String.join(", ", nearby));
-        }
-        
-        sendDebugAlways(player, sb.toString());
+
+        String status = Messages.format("ktrack.debug.status", 
+            "hp", String.format("%.1f", currentHealth), 
+            "attackers", attackerList.isEmpty() ? "none" : String.join(", ", attackerList),
+            "nearby", nearby.isEmpty() ? "none within 20m" : String.join(", ", nearby));
+        sendDebugAlways(player, status);
     }
 
     private void reportDeathWithAttacker(ClientPlayerEntity player) {
         long now = Util.getMeasuringTimeMs();
         MinecraftClient client = MinecraftClient.getInstance();
         
-        sendDebugAlways(player, "§6=== KILL ATTRIBUTION START ===");
+        sendDebugAlways(player, Messages.get("ktrack.debug.attribution_start"));
         
 
-        sendDebugAlways(player, "§7Tracked attackers (" + recentAttackers.size() + "):");
+        sendDebugAlways(player, Messages.format("ktrack.debug.tracked_attackers", "count", String.valueOf(recentAttackers.size())));
         for (Map.Entry<String, Long> entry : recentAttackers.entrySet()) {
             long ageMs = now - entry.getValue();
             boolean valid = ageMs <= ATTACKER_MEMORY_MS;
-            sendDebugAlways(player, "  §7- " + entry.getKey() + ": " + (ageMs/1000) + "s ago " + (valid ? "§a(valid)" : "§c(expired)"));
+            sendDebugAlways(player, Messages.format("ktrack.debug.attacker_entry", 
+                "player", entry.getKey(), 
+                "age", String.valueOf(ageMs/1000), 
+                "status", valid ? Messages.get("status.ok") : Messages.get("status.off")));
         }
         
 
         if (primaryAttacker != null) {
             long primaryAge = now - primaryAttackerTime;
-            sendDebugAlways(player, "§7Primary attacker: §e" + primaryAttacker + "§7 (" + (primaryAge/1000) + "s ago)");
+            sendDebugAlways(player, Messages.format("ktrack.debug.primary_attacker", "player", primaryAttacker, "age", String.valueOf(primaryAge/1000)));
         } else {
-            sendDebugAlways(player, "§7Primary attacker: §cnone");
+            sendDebugAlways(player, Messages.get("ktrack.debug.primary_attacker_none"));
         }
         
 
-        sendDebugAlways(player, "§7Nearby players:");
+        sendDebugAlways(player, Messages.get("ktrack.debug.nearby_players"));
         if (client.world != null) {
             List<PlayerCandidate> candidates = new ArrayList<>();
             for (AbstractClientPlayerEntity otherPlayer : client.world.getPlayers()) {
@@ -387,12 +389,13 @@ public class KillTracker {
             for (PlayerCandidate c : candidates) {
                 String color = c.wasAttacker ? "§c" : (c.isModUser ? "§9" : "§7");
                 String tags = "";
-                if (c.wasAttacker) tags += " [ATTACKER]";
-                if (c.isModUser) tags += " [MOD USER]";
-                sendDebugAlways(player, "  " + color + c.name + "§7 - " + String.format("%.1f", c.distance) + "m" + tags);
+                if (c.wasAttacker) tags += " " + Messages.get("ktrack.tag.attacker");
+                if (c.isModUser) tags += " " + Messages.get("ktrack.tag.mod_user");
+                sendDebugAlways(player, Messages.format("ktrack.debug.player_entry", 
+                    "color", color, "player", c.name, "distance", String.format("%.1f", c.distance), "tags", tags));
             }
             if (candidates.isEmpty()) {
-                sendDebugAlways(player, "  §7(none within 30m)");
+                sendDebugAlways(player, Messages.get("ktrack.debug.none_nearby"));
             }
         }
         
@@ -423,28 +426,26 @@ public class KillTracker {
 
 
         
-        sendDebugAlways(player, "§6=== ATTRIBUTION RESULT ===");
+        sendDebugAlways(player, Messages.get("ktrack.debug.attribution_header"));
         
         if (killer == null) {
 
-            sendDebugAlways(player, "§c§lNO KILLER FOUND!");
-            sendDebugAlways(player, "§c§lTracked attackers: " + recentAttackers.size());
-            sendDebugAlways(player, "§c§lPrimary attacker: " + (primaryAttacker != null ? primaryAttacker : "none"));
-            sendDebugAlways(player, "§c§l>>> DAMAGE TRACKING NOT WORKING? <<<");
-            sendDebugAlways(player, "§c§lYou need to take damage BEFORE dying!");
-            sendDebugAlways(player, "§c§lCheck if damage messages appear when you get hit.");
+            sendDebugAlways(player, Messages.get("ktrack.debug.no_killer_found"));
+            sendDebugAlways(player, Messages.format("ktrack.debug.tracked_attackers_label", "count", String.valueOf(recentAttackers.size())));
+            sendDebugAlways(player, Messages.format("ktrack.debug.primary_attacker_label", "player", (primaryAttacker != null ? primaryAttacker : Messages.get("status.off"))));
+            sendDebugAlways(player, Messages.get("ktrack.debug.no_killer_hint"));
             return;
         }
         
 
         ModUserManager modUserManager = WBUtilsClient.getModUserManager();
         if (modUserManager != null && modUserManager.isModUser(killer)) {
-            sendDebugAlways(player, "§e§lKiller " + killer + " is a mod user - not reporting");
+            sendDebugAlways(player, Messages.format("ktrack.debug.killer_mod_user", "player", killer));
             return;
         }
         
-        sendDebugAlways(player, "§a§lKILLER: " + killer + " (via " + source + ")");
-        sendDebugAlways(player, "§a§lREPORTING KILL TO SERVER...");
+        sendDebugAlways(player, Messages.format("ktrack.debug.killer_final", "player", killer, "source", source));
+        sendDebugAlways(player, Messages.get("ktrack.debug.reporting"));
         
         reportKTrackEvent(killer, player.getGameProfile().getName(), "kill");
         
@@ -477,17 +478,17 @@ public class KillTracker {
             WBUtilsClient.LOGGER.info("[KillTracker] onPlayerDiedInKoth (bounty method) called!");
         }
         if (player != null) {
-            sendDebugAlways(player, "§a§l[KTrack] ===== DEATH DETECTED (BOUNTY) =====");
+            sendDebugAlways(player, Messages.get("ktrack.debug.death_bounty"));
         }
         
         if (!config.ktrackEnabled) {
-            if (player != null) sendDebugAlways(player, "§c[KTrack] Tracker disabled, skipping");
+            if (player != null) sendDebugAlways(player, Messages.get("ktrack.debug.disabled"));
             return;
         }
         
 
         if (config.requireHousing && !WBUtilsClient.getHousingDetector().isInDptb2Housing()) {
-            if (player != null) sendDebugAlways(player, "§c[KTrack] Not in DPTB2 housing, skipping");
+            if (player != null) sendDebugAlways(player, Messages.get("ktrack.debug.not_in_housing"));
             return;
         }
         
@@ -499,22 +500,22 @@ public class KillTracker {
 
         KothProtector kothProtector = WBUtilsClient.getKothProtector();
         if (kothProtector == null) {
-            if (player != null) sendDebugAlways(player, "§c[KTrack] KothProtector not available, skipping death report");
+            if (player != null) sendDebugAlways(player, Messages.get("ktrack.debug.no_koth_protector"));
             return;
         }
 
         if (!kothProtector.isInKoth()) {
             long now = Util.getMeasuringTimeMs();
             if ((now - kothProtector.getLastKothTitleTime()) > 3000L) {
-                if (player != null) sendDebugAlways(player, "§c[KTrack] Not in KOTH area (last seen " + 
-                    (now - kothProtector.getLastKothTitleTime())/1000 + "s ago), skipping bounty report");
+                if (player != null) sendDebugAlways(player, Messages.format("ktrack.debug.not_in_koth", 
+                    "age", String.valueOf((now - kothProtector.getLastKothTitleTime())/1000)));
                 return;
             }
         }
         
         long now = Util.getMeasuringTimeMs();
         if ((now - lastDeathReportTime) < DEATH_REPORT_COOLDOWN_MS) {
-            sendDebugAlways(player, "§e[KTrack] Death recently reported (" + (now - lastDeathReportTime) + "ms ago), cooldown active");
+            sendDebugAlways(player, Messages.format("ktrack.debug.cooldown", "age", String.valueOf(now - lastDeathReportTime)));
             return;
         }
         
@@ -619,15 +620,14 @@ public class KillTracker {
         
         if (config.authServerUrl == null || config.authServerUrl.isBlank()) {
             WBUtilsClient.LOGGER.warn("[KillTracker] No auth server URL configured!");
-            postDebugAlways("§c[KTrack] No server URL configured!");
+            postDebugAlways(Messages.get("ktrack.error.no_url"));
             return;
         }
 
         if (config.authToken == null || config.authToken.isBlank()) {
             if (!authWarningShown) {
                 authWarningShown = true;
-                postDebugAlways("§c[KTrack] Not authenticated! Events will not be reported to the server.");
-                postDebugAlways("§7Use §f/wbutils auth§7 and link your Discord to enable KTrack reporting.");
+                postDebugAlways(Messages.get("ktrack.error.no_auth"));
             }
             if (config.debugKtrack) {
                 WBUtilsClient.LOGGER.info("[KillTracker] Skipping report (no authToken found)");
@@ -635,7 +635,7 @@ public class KillTracker {
             return;
         }
         
-        postDebugAlways("§e[KTrack] Sending " + eventType + " event to server for: " + killer);
+        postDebugAlways(Messages.format("ktrack.debug.sending_event", "type", eventType, "player", killer));
         
         CompletableFuture.runAsync(() -> {
             String urlStr = config.authServerUrl + "/ktrack/report";
@@ -676,14 +676,14 @@ public class KillTracker {
                     }
                     
                     if (response.isSuccess()) {
-                        postDebugAlways("§a[KTrack] Event reported successfully! (" + eventType + " by " + killer + ")");
+                        postDebugAlways(Messages.format("ktrack.debug.report_success", "type", eventType, "player", killer));
                     } else {
-                        postDebugAlways("§c[KTrack] Server returned error: " + response.statusCode());
+                        postDebugAlways(Messages.format("ktrack.error.server_code", "code", String.valueOf(response.statusCode())));
                         WBUtilsClient.LOGGER.warn("KTrack event report failed with status {}", response.statusCode());
                     }
                 })
                 .exceptionally(e -> {
-                    postDebugAlways("§c[KTrack] Failed to send event: " + e.getMessage());
+                    postDebugAlways(Messages.format("ktrack.error.send_failed", "error", e.getMessage()));
                     WBUtilsClient.LOGGER.error("Failed to report KTrack event", e);
                     return null;
                 });
@@ -777,7 +777,7 @@ public class KillTracker {
                 }
             }
             
-            postDebug(Messages.format("KTrack.debug.hotlist_synced", "count", String.valueOf(hotList.size())));
+            postDebug(Messages.format("ktrack.debug.hotlist_parsed", "count", String.valueOf(hotList.size())));
         } catch (Exception e) {
             WBUtilsClient.LOGGER.debug("Failed to parse hot list", e);
         }
@@ -882,10 +882,10 @@ public class KillTracker {
             if (player == null) return;
             
             MutableText alert = Text.empty()
-                .append(Text.literal(Messages.get("KTrack.alert.header")))
-                .append(Text.literal(Messages.format("KTrack.alert.nearby", "player", info.playerName)))
+                .append(Text.literal(Messages.get("ktrack.alert.header")))
+                .append(Text.literal("\n" + Messages.format("ktrack.alert.nearby", "player", info.playerName)))
                 .append(Text.literal("\n" + Messages.getColorText()))
-                .append(Text.literal(Messages.format("KTrack.alert.stats", "kills", String.valueOf(info.totalKills), "damages", String.valueOf(info.totalDamageEvents))));
+                .append(Text.literal(Messages.format("ktrack.alert.stats", "kills", String.valueOf(info.totalKills), "damages", String.valueOf(info.totalDamageEvents))));
             
             player.sendMessage(alert, false);
             
@@ -922,7 +922,7 @@ public class KillTracker {
             NetworkManager.post(urlStr, json, config.authToken)
                 .thenAccept(response -> {
                     if (config.ktrackDebugLogs && response.isSuccess()) {
-                        postDebug(Messages.format("KTrack.debug.proximity_sent", "player", info.playerName));
+                        postDebug(Messages.format("ktrack.debug.proximity_sent", "player", info.playerName));
                     }
                 })
                 .exceptionally(e -> {
@@ -946,12 +946,12 @@ public class KillTracker {
     public void fetchHotList(Consumer<Boolean> callback) {
         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
         if (config.authServerUrl == null || config.authServerUrl.isBlank()) {
-            postDebugAlways("§c[KTrack] No server URL configured!");
+            postDebugAlways(Messages.get("ktrack.error.no_url"));
             callback.accept(false);
             return;
         }
         
-        postDebugAlways("§e[KTrack] Fetching hot list from server...");
+        postDebugAlways(Messages.get("ktrack.debug.fetching_hotlist"));
         
         CompletableFuture.runAsync(() -> {
             String urlStr = config.authServerUrl + "/ktrack/hotlist?time_window_hours=" + config.ktrackTimeWindowHours + "&threshold=" + config.ktrackEventThreshold;
@@ -964,19 +964,19 @@ public class KillTracker {
                     if (response.isSuccess()) {
                         String responseStr = response.body();
                         WBUtilsClient.LOGGER.debug("[KillTracker] Server response: {}", responseStr);
-                        postDebugAlways("§a[KTrack] Server response: " + (responseStr.length() > 100 ? responseStr.substring(0, 100) + "..." : responseStr));
+                        postDebugAlways(Messages.format("ktrack.debug.server_response", "response", (responseStr.length() > 100 ? responseStr.substring(0, 100) + "..." : responseStr)));
                         
                         parseHotListResponse(responseStr);
-                        postDebugAlways("§a[KTrack] Hot list parsed: " + hotList.size() + " killers");
+                        postDebugAlways(Messages.format("ktrack.debug.hotlist_parsed", "count", String.valueOf(hotList.size())));
                         runOnMainThread(() -> callback.accept(true));
                     } else {
-                        postDebugAlways("§c[KTrack] Server error: " + response.statusCode());
+                        postDebugAlways(Messages.format("ktrack.error.server_code", "code", String.valueOf(response.statusCode())));
                         runOnMainThread(() -> callback.accept(false));
                     }
                 })
                 .exceptionally(e -> {
                     WBUtilsClient.LOGGER.error("Failed to fetch hot list", e);
-                    postDebugAlways("§c[KTrack] Fetch failed: " + e.getMessage());
+                    postDebugAlways(Messages.format("ktrack.error.send_failed", "error", e.getMessage()));
                     runOnMainThread(() -> callback.accept(false));
                     return null;
                 });
@@ -986,8 +986,7 @@ public class KillTracker {
     private void sendDebug(ClientPlayerEntity player, String message) {
         if (player == null) return;
         MutableText text = Text.empty()
-            .append(Text.literal("[KTrack Debug] ").formatted(Formatting.DARK_GRAY))
-            .append(Text.literal(message).formatted(Formatting.GRAY));
+            .append(Text.literal(message));
         player.sendMessage(text, false);
         WBUtilsClient.LOGGER.debug("[KTrack Debug] {}", message);
     }
@@ -1030,7 +1029,7 @@ public class KillTracker {
         client.execute(() -> {
             ClientPlayerEntity player = client.player;
             if (player != null) {
-                player.sendMessage(Text.literal("§d[DEBUG:HTTP] " + message), false);
+                player.sendMessage(Text.literal(Messages.format("ktrack.debug.http", "msg", message)), false);
             }
         });
     }

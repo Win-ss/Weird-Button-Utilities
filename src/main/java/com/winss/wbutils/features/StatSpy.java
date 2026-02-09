@@ -108,7 +108,7 @@ public class StatSpy {
             if (count > 5) {
                 names.append(" §7+").append(count - 5).append(" more");
             }
-            client.player.sendMessage(Text.literal("§7» §b" + names), false);
+            client.player.sendMessage(Text.literal(Messages.get("statspy.list_prefix") + names), false);
         }
         
         pendingNotifications.clear();

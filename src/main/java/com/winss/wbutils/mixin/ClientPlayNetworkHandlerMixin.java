@@ -1,6 +1,7 @@
 package com.winss.wbutils.mixin;
 
 import com.winss.wbutils.WBUtilsClient;
+import com.winss.wbutils.Messages;
 import com.winss.wbutils.config.ModConfig;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.network.packet.s2c.play.GameJoinS2CPacket;
@@ -72,8 +73,8 @@ public class ClientPlayNetworkHandlerMixin {
                 
                 net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
                 if (client.player != null) {
-                    client.player.sendMessage(Text.literal("§d[DEBUG:Bounty] Message: " + plain), false);
-                    client.player.sendMessage(Text.literal("§d[DEBUG:Bounty] Is player chat (ignored): " + isPlayerChat), false);
+                    client.player.sendMessage(Text.literal(Messages.format("mixin.bounty.debug.msg", "msg", plain)), false);
+                    client.player.sendMessage(Text.literal(Messages.format("mixin.bounty.debug.chat", "status", String.valueOf(isPlayerChat))), false);
                 }
             }
             

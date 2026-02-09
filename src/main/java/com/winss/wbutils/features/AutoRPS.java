@@ -1,6 +1,7 @@
 package com.winss.wbutils.features;
 
 import com.winss.wbutils.WBUtilsClient;
+import com.winss.wbutils.Messages;
 import com.winss.wbutils.config.ModConfig;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
@@ -164,7 +165,7 @@ public class AutoRPS {
                         
                         MinecraftClient client = MinecraftClient.getInstance();
                         if (client.player != null && config.autoRPSShowFeedback) {
-                            client.player.sendMessage(Text.literal("§9[AutoRPS] §7Analytics require 100+ games. Using random choice."), false);
+                            client.player.sendMessage(Text.literal(Messages.get("autorps.feedback.no_analytics")), false);
                         }
                     }
                 });
@@ -221,11 +222,12 @@ public class AutoRPS {
             };
             String modeStr = config.autoRPSMode == Mode.ANALYTICAL ? "Analytical" : "Random";
             
-            player.sendMessage(Text.literal("§9[AutoRPS] §7Selected: " + choiceColor + pendingChoice + " §7(" + modeStr + ")"), false);
+            player.sendMessage(Text.literal(Messages.format("autorps.feedback.selected", 
+                "color", choiceColor, "choice", pendingChoice, "mode", modeStr)), false);
             
             if (config.autoRPSMode == Mode.ANALYTICAL && cachedStats != null && cachedStats.situationalRecommendation != null) {
                 if (cachedStats.situationalReasoning != null) {
-                    player.sendMessage(Text.literal("§9[AutoRPS] §dReason: §7" + cachedStats.situationalReasoning), false);
+                    player.sendMessage(Text.literal(Messages.format("autorps.feedback.reason", "reason", cachedStats.situationalReasoning)), false);
                 }
             }
         }
@@ -275,7 +277,7 @@ public class AutoRPS {
     
     public static String getModeDisplayString(Mode mode) {
         return switch (mode) {
-            case OFF -> "§cOFF";
+            case OFF -> Messages.get("status.off");
             case RANDOM -> "§aRANDOM";
             case ANALYTICAL -> "§bANALYTICAL";
         };

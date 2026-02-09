@@ -1,6 +1,7 @@
 package com.winss.wbutils.features;
 
 import com.winss.wbutils.WBUtilsClient;
+import com.winss.wbutils.Messages;
 import com.winss.wbutils.config.ModConfig;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
@@ -127,7 +128,7 @@ public class DoorSpirit {
         sendDoorReport(doorUsed, false, correctDoorNumber);
         
         if (config.debugDoorSpirit && player != null) {
-            player.sendMessage(Text.literal("§c[DoorSpirit] Wrong door! Door " + correctDoorNumber + " is correct."), false);
+            player.sendMessage(Text.literal(Messages.format("doorspirit.debug.wrong_door", "correct", String.valueOf(correctDoorNumber))), false);
         }
     }
     
@@ -158,7 +159,7 @@ public class DoorSpirit {
         sendDoorReport(doorUsed, true, doorUsed);
         
         if (config.debugDoorSpirit && player != null) {
-            player.sendMessage(Text.literal("§a[DoorSpirit] Correct! Door " + doorUsed + " confirmed."), false);
+            player.sendMessage(Text.literal(Messages.format("doorspirit.debug.correct_door", "door", String.valueOf(doorUsed))), false);
         }
     }
     
@@ -182,8 +183,8 @@ public class DoorSpirit {
         
         sendDoorCycleReport();
         
-        if (player != null) {
-            player.sendMessage(Text.literal("§7[DoorSpirit] Doors cycled! Unknown which door is correct."), false);
+        if (config.debugDoorSpirit && player != null) {
+            player.sendMessage(Text.literal(Messages.get("doorspirit.debug.cycled")), false);
         }
     }
     
@@ -257,7 +258,7 @@ public class DoorSpirit {
             fetchDoorStateFromServer();
             if (config.debugDoorSpirit) {
                 MinecraftClient.getInstance().player.sendMessage(
-                    Text.literal("§7[DoorSpirit] Fetching shared door state from server..."), false
+                    Text.literal(Messages.get("doorspirit.debug.fetching")), false
                 );
             }
             return;

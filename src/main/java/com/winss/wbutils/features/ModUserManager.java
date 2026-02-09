@@ -52,7 +52,7 @@ public class ModUserManager {
         String playerName = player.getGameProfile().getName();
         String playerUuid = player.getUuid().toString();
         
-        postDebug("Notifying server that we're online in DPTB2...");
+        postDebug(Messages.get("modusers.debug.notifying_online"));
         
         CompletableFuture.runAsync(() -> {
             String urlStr = config.authServerUrl + "/modusers/online";
@@ -67,10 +67,10 @@ public class ModUserManager {
                 .thenAccept(response -> {
                     if (response.isSuccess()) {
                         hasNotifiedOnline = true;
-                        postDebug("§aOnline status sent to server");
+                        postDebug(Messages.get("modusers.debug.online_success"));
                         syncOnlineModUsers(null);
                     } else {
-                        postDebug("§cFailed to notify online: " + response.statusCode());
+                        postDebug(Messages.format("modusers.debug.online_failed", "code", String.valueOf(response.statusCode())));
                     }
                 })
                 .exceptionally(e -> {
@@ -94,7 +94,7 @@ public class ModUserManager {
         String playerName = player.getGameProfile().getName();
         String playerUuid = player.getUuid().toString();
         
-        postDebug("Notifying server that we're offline...");
+        postDebug(Messages.get("modusers.debug.notifying_offline"));
         
         CompletableFuture.runAsync(() -> {
             String urlStr = config.authServerUrl + "/modusers/online";
@@ -107,7 +107,7 @@ public class ModUserManager {
             NetworkManager.post(urlStr, json, config.authToken)
                 .thenAccept(response -> {
                     if (response.isSuccess()) {
-                        postDebug("§aOffline status sent to server");
+                        postDebug(Messages.get("modusers.debug.offline_success"));
                     }
                 })
                 .exceptionally(e -> {
@@ -132,7 +132,7 @@ public class ModUserManager {
                 .thenAccept(response -> {
                     if (response.isSuccess()) {
                         parseOnlineModUsersResponse(response.body());
-                        postDebug("§aSynced online mod users: " + onlineModUsers.size());
+                        postDebug(Messages.format("modusers.debug.synced", "count", String.valueOf(onlineModUsers.size())));
                         if (callback != null) {
                             MinecraftClient.getInstance().execute(() -> callback.accept(true));
                         }

@@ -134,7 +134,7 @@ public class WBUtilsCommand {
                         config.kothProtectorEnabled = !config.kothProtectorEnabled;
                         WBUtilsClient.getConfigManager().save();
 
-                        String state = config.kothProtectorEnabled ? Messages.getColorAccent() + "ENABLED" : "§cDISABLED";
+                        String state = config.kothProtectorEnabled ? Messages.get("status.enabled") : Messages.get("status.disabled");
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.koth_toggle", "state", state)));
                         return 1;
                     })
@@ -216,12 +216,12 @@ public class WBUtilsCommand {
                     .executes(context -> {
                         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                         context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.koth_status.header")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.koth_status.enabled", "value", (config.kothProtectorEnabled ? Messages.getColorAccent() + "Yes" : "§cNo"))));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.koth_status.deathalerts", "value", (config.kothNotifyOnDeath ? Messages.getColorAccent() + "On" : "§cOff"))));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.koth_status.entryalerts", "value", (config.kothNotifyOnEntry ? Messages.getColorAccent() + "On" : "§cOff"))));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.koth_status.exitalerts", "value", (config.kothNotifyOnExit ? Messages.getColorAccent() + "On" : "§cOff"))));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.koth_status.enabled", "value", (config.kothProtectorEnabled ? Messages.get("common.yes") : Messages.get("common.no")))));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.koth_status.deathalerts", "value", (config.kothNotifyOnDeath ? Messages.get("status.on") : Messages.get("status.off")))));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.koth_status.entryalerts", "value", (config.kothNotifyOnEntry ? Messages.get("status.on") : Messages.get("status.off")))));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.koth_status.exitalerts", "value", (config.kothNotifyOnExit ? Messages.get("status.on") : Messages.get("status.off")))));
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.koth_status.discorduserid", "value", (config.discordUserId == null || config.discordUserId.isEmpty() ? "§8Not set" : Messages.getColorAccent() + "Set"))));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.koth_status.debuglogs", "value", (config.kothDebugLogs ? Messages.getColorAccent() + "On" : "§cOff"))));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.koth_status.debuglogs", "value", (config.kothDebugLogs ? Messages.get("status.on") : Messages.get("status.off")))));
                         return 1;
                     })
                 )
@@ -233,7 +233,7 @@ public class WBUtilsCommand {
                         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                         config.ktrackEnabled = !config.ktrackEnabled;
                         WBUtilsClient.getConfigManager().save();
-                        String state = config.ktrackEnabled ? Messages.getColorAccent() + "ENABLED" : "§cDISABLED";
+                        String state = config.unwrapEnabled ? Messages.get("status.on") : Messages.get("status.off");
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.ktrack_toggle", "state", state)));
                         return 1;
                     })
@@ -369,10 +369,10 @@ public class WBUtilsCommand {
                     .executes(context -> {
                         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                         context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.ktrack_status_header")));
-                        context.getSource().sendFeedback(Text.literal(Messages.format("command.ktrack_status_enabled", "value", (config.ktrackEnabled ? Messages.getColorAccent() + "Yes" : "§cNo"))));
+                        context.getSource().sendFeedback(Text.literal(Messages.format("command.ktrack_status_enabled", "value", (config.ktrackEnabled ? Messages.get("common.yes") : Messages.get("common.no")))));
                         context.getSource().sendFeedback(Text.literal(Messages.format("command.ktrack_status_heat", "value", Messages.getColorAccent() + config.ktrackTimeWindowHours + "h")));
                         context.getSource().sendFeedback(Text.literal(Messages.format("command.ktrack_status_cooldown", "value", Messages.getColorAccent() + config.ktrackAlertCooldownMinutes + " min")));
-                        context.getSource().sendFeedback(Text.literal(Messages.format("command.ktrack_status_debug", "value", (config.ktrackDebugLogs ? Messages.getColorAccent() + "On" : "§cOff"))));
+                        context.getSource().sendFeedback(Text.literal(Messages.format("command.ktrack_status_debug", "value", (config.ktrackDebugLogs ? Messages.get("status.on") : Messages.get("status.off")))));
                         
                         // Show hot list count
                         var hotList = WBUtilsClient.getKillTracker().getHotList();
@@ -437,7 +437,7 @@ public class WBUtilsCommand {
                         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                         config.rpsTrackerEnabled = !config.rpsTrackerEnabled;
                         WBUtilsClient.getConfigManager().save();
-                        String state = config.rpsTrackerEnabled ? Messages.getColorAccent() + "ENABLED" : "§cDISABLED";
+                        String state = config.rpsTrackerEnabled ? Messages.get("status.on") : Messages.get("status.off");
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.rps.toggle", "state", state)));
                         return 1;
                     })
@@ -468,8 +468,8 @@ public class WBUtilsCommand {
                         RPSTracker tracker = WBUtilsClient.getRPSTracker();
                         
                         context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.rps.status.header")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.rps.status.enabled", "value", config.rpsTrackerEnabled ? Messages.getColorAccent() + "Yes" : "§cNo")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.rps.status.feedback", "value", config.rpsShowFeedback ? Messages.getColorAccent() + "On" : "§cOff")));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.rps.status.enabled", "value", config.rpsTrackerEnabled ? Messages.get("common.yes") : Messages.get("common.no"))));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.rps.status.feedback", "value", config.rpsShowFeedback ? Messages.get("status.on") : Messages.get("status.off"))));
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.rps.status.session_games", "value", Messages.getColorAccent() + String.valueOf(tracker.getSessionGameCount()))));
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.rps.status.session_id", "value", Messages.getColorAccent() + tracker.getSessionId())));
                         return 1;
@@ -490,7 +490,7 @@ public class WBUtilsCommand {
                         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                         config.autoRPSEnabled = !config.autoRPSEnabled;
                         WBUtilsClient.getConfigManager().save();
-                        String state = config.autoRPSEnabled ? Messages.getColorAccent() + "ENABLED" : "§cDISABLED";
+                        String state = config.autoRPSEnabled ? Messages.get("status.on") : Messages.get("status.off");
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.toggle", "state", state)));
                         return 1;
                     })
@@ -564,19 +564,19 @@ public class WBUtilsCommand {
                         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                         
                         context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.autorps.status.header")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.enabled", "value", config.autoRPSEnabled ? Messages.getColorAccent() + "Yes" : "§cNo")));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.enabled", "value", config.autoRPSEnabled ? Messages.get("common.yes") : Messages.get("common.no"))));
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.mode", "value", AutoRPS.getModeDisplayString(config.autoRPSMode))));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.feedback", "value", config.autoRPSShowFeedback ? Messages.getColorAccent() + "On" : "§cOff")));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.feedback", "value", config.autoRPSShowFeedback ? Messages.get("status.on") : Messages.get("status.off"))));
                         
                         WBUtilsClient.getRPSTracker().fetchStats(stats -> {
                             if (stats != null) {
                                 if (stats.analyticsAvailable && stats.totalGames >= 100) {
-                                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.analytics", "value", Messages.getColorAccent() + "Available")));
+                                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.analytics", "value", Messages.get("status.available"))));
                                     if (stats.recommendedMove != null) {
                                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.recommended", "move", "§a" + stats.recommendedMove)));
                                     }
                                 } else {
-                                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.analytics", "value", "§cNeed " + stats.gamesUntilAnalytics + " more games")));
+                                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.analytics", "value", Messages.get("status.need") + stats.gamesUntilAnalytics + Messages.get("status.more_games"))));
                                 }
                             }
                         });
@@ -598,7 +598,7 @@ public class WBUtilsCommand {
                         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                         config.autoRejoinEnabled = !config.autoRejoinEnabled;
                         WBUtilsClient.getConfigManager().save();
-                        String state = config.autoRejoinEnabled ? Messages.getColorAccent() + "ENABLED" : "§cDISABLED";
+                        String state = config.autoRejoinEnabled ? Messages.get("status.on") : Messages.get("status.off");
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.toggle", "state", state)));
                         return 1;
                     })
@@ -609,15 +609,15 @@ public class WBUtilsCommand {
                         var autoRejoin = WBUtilsClient.getAutoRejoin();
                         
                         context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.autorejoin.status.header")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.enabled", "value", config.autoRejoinEnabled ? Messages.getColorAccent() + "Yes" : "§cNo")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.debug", "value", config.debugAutoRejoin ? Messages.getColorAccent() + "On" : "§cOff")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.in_progress", "value", autoRejoin.isRejoinInProgress() ? Messages.getColorAccent() + "Yes" : "§cNo")));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.enabled", "value", config.autoRejoinEnabled ? Messages.get("common.yes") : Messages.get("common.no"))));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.debug", "value", config.debugAutoRejoin ? Messages.get("status.on") : Messages.get("status.off"))));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.in_progress", "value", autoRejoin.isRejoinInProgress() ? Messages.get("common.yes") : Messages.get("common.no"))));
                         
                         if (autoRejoin.isRejoinInProgress()) {
                             context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.state", "value", Messages.getColorAccent() + autoRejoin.getCurrentState().name())));
                         }
                         
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.was_in_housing", "value", autoRejoin.wasPlayerInHousing() ? Messages.getColorAccent() + "Yes" : "§cNo")));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.was_in_housing", "value", autoRejoin.wasPlayerInHousing() ? Messages.get("common.yes") : Messages.get("common.no"))));
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.indicators", "value", Messages.getColorAccent() + String.valueOf(autoRejoin.getDisconnectIndicatorCount()))));
                         
                         long lastRefresh = autoRejoin.getLastDisconnectMessagesFetch();
@@ -667,7 +667,7 @@ public class WBUtilsCommand {
                         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                         config.unwrapEnabled = !config.unwrapEnabled;
                         WBUtilsClient.getConfigManager().save();
-                        String state = config.unwrapEnabled ? Messages.getColorAccent() + "ENABLED" : "§cDISABLED";
+                        String state = config.unwrapEnabled ? Messages.get("status.on") : Messages.get("status.off");
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.unwrap.toggle", "state", state)));
                         return 1;
                     })
@@ -678,8 +678,8 @@ public class WBUtilsCommand {
                         var unwrap = WBUtilsClient.getUnwrap();
                         
                         context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.unwrap.status.header")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.unwrap.status.enabled", "value", config.unwrapEnabled ? Messages.getColorAccent() + "Yes" : "§cNo")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.unwrap.status.debug", "value", config.debugUnwrap ? Messages.getColorAccent() + "On" : "§cOff")));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.unwrap.status.enabled", "value", config.unwrapEnabled ? Messages.get("common.yes") : Messages.get("common.no"))));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.unwrap.status.debug", "value", config.debugUnwrap ? Messages.get("status.on") : Messages.get("status.off"))));
                         
                         String cmds = String.join(", ", unwrap.getUnwrapCommands());
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.unwrap.status.commands", "value", Messages.getColorAccent() + cmds)));
@@ -703,7 +703,7 @@ public class WBUtilsCommand {
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "API Server: " + Messages.getColorAccent() + WBUtilsClient.getConfigManager().getConfig().authServerUrl));
                         
                         AuthService.checkLinkStatusSafe(result -> {
-                            String apiStatus = result == AuthService.LinkCheckResult.ERROR ? "§cOffline" : "§aOnline";
+                            String apiStatus = result == AuthService.LinkCheckResult.ERROR ? Messages.get("status.offline") : Messages.get("status.online");
                             context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "API Status: " + apiStatus));
                         });
                         
@@ -761,7 +761,7 @@ public class WBUtilsCommand {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             config.debugBounty = !config.debugBounty;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugBounty ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = config.debugBounty ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.bounty", "state", state)));
                             return 1;
                         })
@@ -771,7 +771,7 @@ public class WBUtilsCommand {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             config.debugDamage = !config.debugDamage;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugDamage ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = config.debugDamage ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.damage", "state", state)));
                             return 1;
                         })
@@ -781,7 +781,7 @@ public class WBUtilsCommand {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             config.debugKothState = !config.debugKothState;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugKothState ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = config.debugKothState ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.koth", "state", state)));
                             return 1;
                         })
@@ -791,7 +791,7 @@ public class WBUtilsCommand {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             config.debugKtrack = !config.debugKtrack;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugKtrack ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = config.debugKtrack ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.ktrack", "state", state)));
                             return 1;
                         })
@@ -801,7 +801,7 @@ public class WBUtilsCommand {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             config.debugHttp = !config.debugHttp;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugHttp ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = config.debugHttp ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.http", "state", state)));
                             return 1;
                         })
@@ -811,7 +811,7 @@ public class WBUtilsCommand {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             config.debugDoorSpirit = !config.debugDoorSpirit;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugDoorSpirit ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = config.debugDoorSpirit ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.doorspirit", "state", state)));
                             return 1;
                         })
@@ -821,7 +821,7 @@ public class WBUtilsCommand {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             config.debugRPS = !config.debugRPS;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugRPS ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = config.debugRPS ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.rps", "state", state)));
                             return 1;
                         })
@@ -831,7 +831,7 @@ public class WBUtilsCommand {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             config.debugAutoRPS = !config.debugAutoRPS;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugAutoRPS ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = config.debugAutoRPS ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.autorps", "state", state)));
                             return 1;
                         })
@@ -841,7 +841,7 @@ public class WBUtilsCommand {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             config.debugAutoRejoin = !config.debugAutoRejoin;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugAutoRejoin ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = config.debugAutoRejoin ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.autorejoin", "state", state)));
                             return 1;
                         })
@@ -851,7 +851,7 @@ public class WBUtilsCommand {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             config.debugUnwrap = !config.debugUnwrap;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugUnwrap ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = config.debugUnwrap ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.unwrap", "state", state)));
                             return 1;
                         })
@@ -867,7 +867,7 @@ public class WBUtilsCommand {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             config.debugModUsers = !config.debugModUsers;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugModUsers ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = config.debugModUsers ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.modusers", "state", state)));
                             return 1;
                         })
@@ -877,7 +877,7 @@ public class WBUtilsCommand {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             config.debugBootlist = !config.debugBootlist;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugBootlist ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = config.debugBootlist ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.bootlist", "state", state)));
                             return 1;
                         })
@@ -887,7 +887,7 @@ public class WBUtilsCommand {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             config.debugStatSpy = !config.debugStatSpy;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugStatSpy ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = config.debugStatSpy ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.statspy", "state", state)));
                             return 1;
                         })
@@ -912,7 +912,7 @@ public class WBUtilsCommand {
                             config.kothDebugLogs = newState;
                             config.ktrackDebugLogs = newState;
                             WBUtilsClient.getConfigManager().save();
-                            String state = newState ? Messages.getColorAccent() + "ON" : "§cOFF";
+                            String state = newState ? Messages.get("status.on") : Messages.get("status.off");
                             context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.all", "state", state)));
                             return 1;
                         })
@@ -921,17 +921,7 @@ public class WBUtilsCommand {
                         .executes(context -> {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                             context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.header")));
-                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.debug.bounty", "state", (config.debugBounty ? Messages.getColorAccent() + "ON" : "§cOFF"))));
-                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.debug.damage", "state", (config.debugDamage ? Messages.getColorAccent() + "ON" : "§cOFF"))));
-                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.debug.koth", "state", (config.debugKothState ? Messages.getColorAccent() + "ON" : "§cOFF"))));
-                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.debug.ktrack", "state", (config.debugKtrack ? Messages.getColorAccent() + "ON" : "§cOFF"))));
-                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.debug.http", "state", (config.debugHttp ? Messages.getColorAccent() + "ON" : "§cOFF"))));
-                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.debug.doorspirit", "state", (config.debugDoorSpirit ? Messages.getColorAccent() + "ON" : "§cOFF"))));
-                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.debug.rps", "state", (config.debugRPS ? Messages.getColorAccent() + "ON" : "§cOFF"))));
-                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.debug.autorps", "state", (config.debugAutoRPS ? Messages.getColorAccent() + "ON" : "§cOFF"))));
-                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.debug.autorejoin", "state", (config.debugAutoRejoin ? Messages.getColorAccent() + "ON" : "§cOFF"))));
-                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.debug.unwrap", "state", (config.debugUnwrap ? Messages.getColorAccent() + "ON" : "§cOFF"))));
-                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.debug.modusers", "state", (config.debugModUsers ? Messages.getColorAccent() + "ON" : "§cOFF"))));
+                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.debug.modusers", "state", (config.debugModUsers ? Messages.get("status.on") : Messages.get("status.off")))));
                             context.getSource().sendFeedback(Text.literal(""));
                             context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.housing_hint")));
                             return 1;
@@ -974,7 +964,7 @@ public class WBUtilsCommand {
                         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                         config.bootlistEnabled = !config.bootlistEnabled;
                         WBUtilsClient.getConfigManager().save();
-                        String state = config.bootlistEnabled ? Messages.getColorAccent() + "ENABLED" : "§cDISABLED";
+                        String state = config.bootlistEnabled ? Messages.get("status.enabled") : Messages.get("status.disabled");
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.bootlist.toggle", "state", state)));
                         return 1;
                     })
@@ -985,10 +975,10 @@ public class WBUtilsCommand {
                         var tracker = WBUtilsClient.getBootlistTracker();
                         
                         context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.bootlist.status.header")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.bootlist.status.enabled", "value", config.bootlistEnabled ? Messages.getColorAccent() + "Yes" : "§cNo")));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.bootlist.status.enabled", "value", config.bootlistEnabled ? Messages.get("common.yes") : Messages.get("common.no"))));
                         
                         long lastSync = tracker.getLastSyncTime();
-                        String lastSyncStr = lastSync == 0 ? "§cNever" : Messages.getColorAccent() + getTimeAgo(lastSync);
+                        String lastSyncStr = lastSync == 0 ? Messages.get("status.never") : Messages.getColorAccent() + getTimeAgo(lastSync);
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.bootlist.status.last_sync", "value", lastSyncStr)));
                         
                         long cooldownMs = tracker.getRemainingCooldownMs();
@@ -996,13 +986,13 @@ public class WBUtilsCommand {
                             long cooldownMin = cooldownMs / 60000;
                             context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.bootlist.status.cooldown", "value", "§e" + cooldownMin + " minutes")));
                         } else {
-                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.bootlist.status.cooldown", "value", Messages.getColorAccent() + "Ready")));
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.bootlist.status.cooldown", "value", Messages.get("status.ready"))));
                         }
                         
                         int bootsTracked = tracker.getLastBootsData().size();
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.bootlist.status.boots_tracked", "value", Messages.getColorAccent() + String.valueOf(bootsTracked))));
                         
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.bootlist.status.debug", "value", config.debugBootlist ? Messages.getColorAccent() + "On" : "§cOff")));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.bootlist.status.debug", "value", config.debugBootlist ? Messages.get("status.on") : Messages.get("status.off"))));
                         return 1;
                     })
                 )
@@ -1065,7 +1055,7 @@ public class WBUtilsCommand {
                         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                         config.statSpyEnabled = !config.statSpyEnabled;
                         WBUtilsClient.getConfigManager().save();
-                        String state = config.statSpyEnabled ? Messages.getColorAccent() + "ENABLED" : "§cDISABLED";
+                        String state = config.statSpyEnabled ? Messages.get("status.enabled") : Messages.get("status.disabled");
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.statspy.toggle", "state", state)));
                         return 1;
                     })
@@ -1076,9 +1066,9 @@ public class WBUtilsCommand {
                         StatSpy statSpy = WBUtilsClient.getStatSpy();
                         
                         context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.statspy.status.header")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.statspy.status.enabled", "value", config.statSpyEnabled ? Messages.getColorAccent() + "Yes" : "§cNo")));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.statspy.status.enabled", "value", config.statSpyEnabled ? Messages.get("common.yes") : Messages.get("common.no"))));
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.statspy.status.log_count", "value", Messages.getColorAccent() + String.valueOf(statSpy.getLogCount()))));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.statspy.status.debug", "value", config.debugStatSpy ? Messages.getColorAccent() + "On" : "§cOff")));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.statspy.status.debug", "value", config.debugStatSpy ? Messages.get("status.on") : Messages.get("status.off"))));
                         return 1;
                     })
                 )
@@ -1130,13 +1120,13 @@ public class WBUtilsCommand {
         long days = hours / 24;
         
         if (days > 0) {
-            return days + " day" + (days > 1 ? "s" : "") + " ago";
+            return days + " " + (days > 1 ? Messages.get("time.days") : Messages.get("time.day")) + " " + Messages.get("time.ago");
         } else if (hours > 0) {
-            return hours + " hour" + (hours > 1 ? "s" : "") + " ago";
+            return hours + " " + (hours > 1 ? Messages.get("time.hours") : Messages.get("time.hour")) + " " + Messages.get("time.ago");
         } else if (minutes > 0) {
-            return minutes + " minute" + (minutes > 1 ? "s" : "") + " ago";
+            return minutes + " " + (minutes > 1 ? Messages.get("time.minutes") : Messages.get("time.minute")) + " " + Messages.get("time.ago");
         } else {
-            return seconds + " second" + (seconds > 1 ? "s" : "") + " ago";
+            return seconds + " " + (seconds > 1 ? Messages.get("time.seconds") : Messages.get("time.second")) + " " + Messages.get("time.ago");
         }
     }
 }

@@ -40,8 +40,10 @@ public class ClientPlayerEntityMixin {
                 net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
                 if (client.player != null) {
                     client.player.sendMessage(net.minecraft.text.Text.literal(
-                        "§d[DEBUG:Damage] " + String.format("%.1f", wbutils$lastHealth) + " -> " + 
-                        String.format("%.1f", currentHealth) + " (took " + String.format("%.1f", damage) + " damage)"
+                        com.winss.wbutils.Messages.format("mixin.damage.debug", 
+                            "old", String.format("%.1f", wbutils$lastHealth), 
+                            "new", String.format("%.1f", currentHealth), 
+                            "damage", String.format("%.1f", damage))
                     ), false);
                 }
             }
