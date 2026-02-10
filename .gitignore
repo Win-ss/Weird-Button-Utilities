@@ -27,5 +27,4 @@ logs/
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
 *.js
-*.md
 *.txt
