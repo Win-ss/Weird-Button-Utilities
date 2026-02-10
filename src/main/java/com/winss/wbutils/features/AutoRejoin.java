@@ -4,26 +4,12 @@ import com.winss.wbutils.WBUtilsClient;
 import com.winss.wbutils.Messages;
 import com.winss.wbutils.config.ModConfig;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
-import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.network.ClientPlayerInteractionManager;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
-import net.minecraft.util.Hand;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -38,19 +24,12 @@ public class AutoRejoin {
     private final Random random = new Random();
     
     private static final int RECONNECT_DELAY_BASE_TICKS = 5 * 20;
-    private static final int RECONNECT_DELAY_JITTER_TICKS = 1 * 20;
-    private static final int SPAWN_DELAY_BASE_TICKS = 2 * 20;
-    private static final int SPAWN_DELAY_JITTER_TICKS = 1 * 20;
-    private static final int COMPASS_CLICK_DELAY_BASE_TICKS = 10;
-    private static final int COMPASS_CLICK_DELAY_JITTER_TICKS = 10;
-    private static final int MENU_WAIT_DELAY_BASE_TICKS = 5;
-    private static final int MENU_WAIT_DELAY_JITTER_TICKS = 5;
-    private static final int MENU_CLICK_DELAY_BASE_TICKS = 10;
-    private static final int MENU_CLICK_DELAY_JITTER_TICKS = 10;
+    private static final int RECONNECT_DELAY_JITTER_TICKS = 5 * 20;
+    private static final int SPAWN_DELAY_BASE_TICKS = 20; 
+    private static final int SPAWN_DELAY_JITTER_TICKS = 20; 
     private static final int HOUSING_LOAD_DELAY_BASE_TICKS = 3 * 20;
     private static final int HOUSING_LOAD_DELAY_JITTER_TICKS = 1 * 20;
-    private static final int VISIT_DELAY_BASE_TICKS = 1 * 20;
-    private static final int VISIT_DELAY_JITTER_TICKS = 1 * 20;
+    private static final int VISIT_DELAY_BASE_TICKS = 20;
     
     private final Set<String> disconnectIndicators = new HashSet<>();
     private long lastDisconnectMessagesFetch = 0L;
@@ -64,9 +43,8 @@ public class AutoRejoin {
     private int stateDelayTicks = 0;
     private int stateTimeoutTicks = 0;
     private static final int STATE_TIMEOUT_MAX = 60 * 20;
-    
-    private boolean waitingForScreen = false;
-    private String expectedScreenTitle = null;
+
+    private boolean waitingForWorldLoad = false;
     
     public enum RejoinState {
         IDLE,
@@ -79,13 +57,9 @@ public class AutoRejoin {
         RECONNECTING,
         WAITING_FOR_SPAWN,
         // Common flow
-        CLICKING_COMPASS,
-        WAITING_FOR_GAME_MENU,
-        CLICKING_HOUSING_DOOR,
+        SENDING_HOUSING_COMMAND,
         WAITING_FOR_HOUSING_LOAD,
-        SENDING_VISIT,
-        WAITING_FOR_VISIT_MENU,
-        CLICKING_HOUSING_HEAD,
+        SENDING_VISIT_COMMAND,
         COMPLETED,
         FAILED
     }
@@ -385,10 +359,12 @@ public class AutoRejoin {
         stateTimeoutTicks = 0;
         wasInHousing = false;
         intentionalDisconnect = false;
-        waitingForScreen = false;
-        expectedScreenTitle = null;
+        waitingForWorldLoad = false;
     }
     
+    private ModConfig config() {
+        return WBUtilsClient.getConfigManager().getConfig();
+    }
 
     private void processRejoinState(MinecraftClient client, ModConfig config) {
         if (stateDelayTicks > 0) {
@@ -421,26 +397,14 @@ public class AutoRejoin {
             case WAITING_FOR_SPAWN:
                 handleWaitingForSpawn(client);
                 break;
-            case CLICKING_COMPASS:
-                handleClickingCompass(client);
-                break;
-            case WAITING_FOR_GAME_MENU:
-                handleWaitingForGameMenu(client);
-                break;
-            case CLICKING_HOUSING_DOOR:
-                handleClickingHousingDoor(client);
+            case SENDING_HOUSING_COMMAND:
+                handleSendingHousingCommand(client);
                 break;
             case WAITING_FOR_HOUSING_LOAD:
                 handleWaitingForHousingLoad(client);
                 break;
-            case SENDING_VISIT:
-                handleSendingVisit(client);
-                break;
-            case WAITING_FOR_VISIT_MENU:
-                handleWaitingForVisitMenu(client);
-                break;
-            case CLICKING_HOUSING_HEAD:
-                handleClickingHousingHead(client);
+            case SENDING_VISIT_COMMAND:
+                handleSendingVisitCommand(client);
                 break;
             case COMPLETED:
                 handleCompleted(client);
@@ -481,13 +445,8 @@ public class AutoRejoin {
     
     private void handleWaitingForLobby(MinecraftClient client) {
         if (client.player != null) {
-            currentState = RejoinState.CLICKING_COMPASS;
-            stateDelayTicks = getRandomizedDelay(COMPASS_CLICK_DELAY_BASE_TICKS, COMPASS_CLICK_DELAY_JITTER_TICKS);
+            currentState = RejoinState.SENDING_HOUSING_COMMAND;
             stateTimeoutTicks = 0;
-            
-            if (config().debugAutoRejoin) {
-                WBUtilsClient.LOGGER.info("[AutoRejoin] In lobby, waiting {} seconds before compass click", stateDelayTicks / 20);
-            }
         }
     }
     
@@ -514,7 +473,7 @@ public class AutoRejoin {
             stateTimeoutTicks = 0;
             
             if (config().debugAutoRejoin) {
-                WBUtilsClient.LOGGER.info("[AutoRejoin] Connected to server, waiting {} seconds before compass click", 
+                WBUtilsClient.LOGGER.info("[AutoRejoin] Connected to server, waiting {} seconds before sending commands", 
                     stateDelayTicks / 20);
             }
         }
@@ -522,90 +481,25 @@ public class AutoRejoin {
     
     private void handleWaitingForSpawn(MinecraftClient client) {
         if (client.player != null) {
-            currentState = RejoinState.CLICKING_COMPASS;
-            stateDelayTicks = getRandomizedDelay(COMPASS_CLICK_DELAY_BASE_TICKS, COMPASS_CLICK_DELAY_JITTER_TICKS);
+            currentState = RejoinState.SENDING_HOUSING_COMMAND;
             stateTimeoutTicks = 0;
-            
-            if (config().debugAutoRejoin) {
-                WBUtilsClient.LOGGER.info("[AutoRejoin] Spawned, waiting {} seconds before compass click", stateDelayTicks / 20);
-            }
         }
     }
     
     
-    private void handleClickingCompass(MinecraftClient client) {
-        if (client.player == null || client.interactionManager == null) return;
-        
-        client.player.getInventory().selectedSlot = 0;
-        
-        client.interactionManager.interactItem(client.player, Hand.MAIN_HAND);
+    private void handleSendingHousingCommand(MinecraftClient client) {
+        if (client.player == null) return;
         
         if (config().debugAutoRejoin) {
-            WBUtilsClient.LOGGER.info("[AutoRejoin] Right-clicked compass in slot 1");
+            WBUtilsClient.LOGGER.info("[AutoRejoin] Sending /l housing");
         }
         
-        currentState = RejoinState.WAITING_FOR_GAME_MENU;
-        stateDelayTicks = getRandomizedDelay(MENU_WAIT_DELAY_BASE_TICKS, MENU_WAIT_DELAY_JITTER_TICKS);
-        stateTimeoutTicks = 0;
-    }
-    
-    private void handleWaitingForGameMenu(MinecraftClient client) {
-        if (client.currentScreen instanceof HandledScreen<?> screen) {
-            String title = screen.getTitle().getString();
-            
-            if (config().debugAutoRejoin) {
-                WBUtilsClient.LOGGER.info("[AutoRejoin] Game menu opened: {}", title);
-            }
-            
-            currentState = RejoinState.CLICKING_HOUSING_DOOR;
-            stateDelayTicks = getRandomizedDelay(MENU_CLICK_DELAY_BASE_TICKS, MENU_CLICK_DELAY_JITTER_TICKS);
-            stateTimeoutTicks = 0;
-            
-            if (config().debugAutoRejoin) {
-                WBUtilsClient.LOGGER.info("[AutoRejoin] Waiting {} seconds before clicking HOUSING door", stateDelayTicks / 20);
-            }
-        }
-    }
-    
-    private void handleClickingHousingDoor(MinecraftClient client) {
-        if (!(client.currentScreen instanceof HandledScreen<?> screen)) {
-            currentState = RejoinState.CLICKING_COMPASS;
-            stateDelayTicks = getRandomizedDelay(COMPASS_CLICK_DELAY_BASE_TICKS, COMPASS_CLICK_DELAY_JITTER_TICKS);
-            return;
-        }
-        
-        ScreenHandler handler = screen.getScreenHandler();
-        
-        final int HOUSING_SLOT = 28;
-        
-        if (config().debugAutoRejoin) {
-            if (HOUSING_SLOT < handler.slots.size()) {
-                Slot slot = handler.slots.get(HOUSING_SLOT);
-                ItemStack stack = slot.getStack();
-                WBUtilsClient.LOGGER.info("[AutoRejoin] Slot 28 contains: {} - {}", 
-                    stack.getItem().toString(), stack.getName().getString());
-            }
-        }
-        
-        if (client.interactionManager != null) {
-            client.interactionManager.clickSlot(
-                handler.syncId,
-                HOUSING_SLOT,
-                0,
-                SlotActionType.PICKUP,
-                client.player
-            );
-            
-            if (config().debugAutoRejoin) {
-                WBUtilsClient.LOGGER.info("[AutoRejoin] Clicked HOUSING door at slot {}", HOUSING_SLOT);
-            }
-        }
-        
-        client.setScreen(null);
+        client.player.networkHandler.sendChatCommand("l housing");
         
         currentState = RejoinState.WAITING_FOR_HOUSING_LOAD;
         stateDelayTicks = getRandomizedDelay(HOUSING_LOAD_DELAY_BASE_TICKS, HOUSING_LOAD_DELAY_JITTER_TICKS);
         stateTimeoutTicks = 0;
+        waitingForWorldLoad = true; 
         
         if (config().debugAutoRejoin) {
             WBUtilsClient.LOGGER.info("[AutoRejoin] Waiting {} seconds for housing world to load", stateDelayTicks / 20);
@@ -614,91 +508,24 @@ public class AutoRejoin {
     
     private void handleWaitingForHousingLoad(MinecraftClient client) {
         if (client.player != null) {
-            currentState = RejoinState.SENDING_VISIT;
+            currentState = RejoinState.SENDING_VISIT_COMMAND;
             stateTimeoutTicks = 0;
         }
     }
     
-    private void handleSendingVisit(MinecraftClient client) {
+    private void handleSendingVisitCommand(MinecraftClient client) {
         if (client.player == null) return;
         
-        if (config().debugAutoRejoin) {
-            WBUtilsClient.LOGGER.info("[AutoRejoin] Sending /visit cyborg023");
-        }
-        
-        client.player.networkHandler.sendChatCommand("visit cyborg023");
-        
-        currentState = RejoinState.WAITING_FOR_VISIT_MENU;
-        stateDelayTicks = getRandomizedDelay(VISIT_DELAY_BASE_TICKS, VISIT_DELAY_JITTER_TICKS);
-        stateTimeoutTicks = 0;
+        String command = "visit cyborg023 don't press the button";
         
         if (config().debugAutoRejoin) {
-            WBUtilsClient.LOGGER.info("[AutoRejoin] Waiting {} seconds for visit menu", stateDelayTicks / 20);
-        }
-    }
-    
-    private void handleWaitingForVisitMenu(MinecraftClient client) {
-        if (client.currentScreen instanceof HandledScreen<?> screen) {
-            currentState = RejoinState.CLICKING_HOUSING_HEAD;
-            stateDelayTicks = getRandomizedDelay(MENU_CLICK_DELAY_BASE_TICKS, MENU_CLICK_DELAY_JITTER_TICKS);
-            stateTimeoutTicks = 0;
-            
-            if (config().debugAutoRejoin) {
-                WBUtilsClient.LOGGER.info("[AutoRejoin] Visit menu opened, waiting {} seconds before clicking", 
-                    stateDelayTicks / 20);
-            }
-        }
-    }
-    
-    private void handleClickingHousingHead(MinecraftClient client) {
-        if (!(client.currentScreen instanceof HandledScreen<?> screen)) {
-            if (WBUtilsClient.getHousingDetector() != null && 
-                WBUtilsClient.getHousingDetector().isInDptb2Housing()) {
-                currentState = RejoinState.COMPLETED;
-                return;
-            }
-            stateTimeoutTicks++;
-            return;
+            WBUtilsClient.LOGGER.info("[AutoRejoin] Sending /{}", command);
         }
         
-        ScreenHandler handler = screen.getScreenHandler();
-        
-        int headSlot = findPlayerHeadWithNameContaining(handler, "dont press the button");
-        
-        if (headSlot == -1) {
-            if (config().debugAutoRejoin) {
-                WBUtilsClient.LOGGER.warn("[AutoRejoin] Housing head not found in visit menu");
-                for (int i = 0; i < handler.slots.size(); i++) {
-                    Slot slot = handler.slots.get(i);
-                    ItemStack stack = slot.getStack();
-                    if (!stack.isEmpty()) {
-                        WBUtilsClient.LOGGER.info("[AutoRejoin]   Slot {}: {} - {}", 
-                            i, stack.getItem().toString(), stack.getName().getString());
-                    }
-                }
-            }
-            stateTimeoutTicks++;
-            return;
-        }
-        
-        if (client.interactionManager != null) {
-            client.interactionManager.clickSlot(
-                handler.syncId,
-                headSlot,
-                0,
-                SlotActionType.PICKUP,
-                client.player
-            );
-            
-            if (config().debugAutoRejoin) {
-                WBUtilsClient.LOGGER.info("[AutoRejoin] Clicked housing head at slot {}", headSlot);
-            }
-        }
-        
-        client.setScreen(null);
+        client.player.networkHandler.sendChatCommand(command);
         
         currentState = RejoinState.COMPLETED;
-        stateDelayTicks = 20;
+        stateDelayTicks = 20; 
         stateTimeoutTicks = 0;
     }
 
@@ -709,46 +536,6 @@ public class AutoRejoin {
         
         WBUtilsClient.LOGGER.info("[AutoRejoin] Rejoin sequence completed successfully");
         resetState();
-    }
-
-    private int findSlotWithItemAndName(ScreenHandler handler, net.minecraft.item.Item item, String name) {
-        for (int i = 0; i < handler.slots.size(); i++) {
-            Slot slot = handler.slots.get(i);
-            ItemStack stack = slot.getStack();
-            
-            if (stack.isEmpty()) continue;
-            if (!stack.isOf(item)) continue;
-            
-            String itemName = stack.getName().getString();
-            String strippedName = itemName.replaceAll("§[0-9a-fk-or]", "").trim();
-            
-            if (strippedName.equalsIgnoreCase(name) || strippedName.contains(name)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-
-    private int findPlayerHeadWithNameContaining(ScreenHandler handler, String nameContains) {
-        String searchNormalized = nameContains.toLowerCase().replace("'", "").replace("'", "");
-        
-        for (int i = 0; i < handler.slots.size(); i++) {
-            Slot slot = handler.slots.get(i);
-            ItemStack stack = slot.getStack();
-            
-            if (stack.isEmpty()) continue;
-            if (!stack.isOf(Items.PLAYER_HEAD)) continue;
-            
-            String itemName = stack.getName().getString();
-            String strippedName = itemName.replaceAll("§[0-9a-fk-or]", "").trim().toLowerCase()
-                .replace("'", "").replace("'", "");
-            
-            if (strippedName.contains(searchNormalized)) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     public void fetchDisconnectMessages(Consumer<Boolean> callback) {
@@ -800,75 +587,60 @@ public class AutoRejoin {
                         }
                     }
                     
-                    if (!newIndicators.isEmpty()) {
-                        disconnectIndicators.clear();
+                    runOnMainThread(() -> {
                         disconnectIndicators.addAll(newIndicators);
-                        lastDisconnectMessagesFetch = System.currentTimeMillis();
-                        
                         if (config.debugAutoRejoin) {
-                            WBUtilsClient.LOGGER.info("[AutoRejoin] Loaded {} disconnect indicators from server", 
-                                disconnectIndicators.size());
+                            WBUtilsClient.LOGGER.info("[AutoRejoin] Updated disconnect indicators. Total: {}", disconnectIndicators.size());
                         }
-                    }
-                }
-                
-                    runOnMainThread(() -> callback.accept(true));
-                })
-                .exceptionally(e -> {
-                    isFetching = false;
-                    lastDisconnectMessagesFetch = System.currentTimeMillis();
-                    if (config.debugAutoRejoin) {
-                        WBUtilsClient.LOGGER.error("[AutoRejoin] Failed to fetch disconnect messages", e);
-                    }
+                        callback.accept(true);
+                    });
+                } else {
                     runOnMainThread(() -> callback.accept(false));
-                    return null;
-                });
-        });
-    }
-
-    public void refreshDisconnectMessagesIfNeeded() {
-        if (isFetching) return;
-        
-        long now = System.currentTimeMillis();
-        if (now - lastDisconnectMessagesFetch > DISCONNECT_MESSAGES_REFRESH_INTERVAL_MS) {
-            fetchDisconnectMessages(success -> {
-                if (success) {
-                    WBUtilsClient.LOGGER.info("[AutoRejoin] Disconnect messages refreshed");
                 }
+            }).exceptionally(e -> {
+                isFetching = false;
+                runOnMainThread(() -> callback.accept(false));
+                return null;
             });
-        }
-    }
-    
-
-    public void forceRefreshDisconnectMessages(Consumer<Boolean> callback) {
-        fetchDisconnectMessages(callback);
-    }
-    
-    private ModConfig config() {
-        return WBUtilsClient.getConfigManager().getConfig();
-    }
-    
-    private static void runOnMainThread(Runnable runnable) {
-        MinecraftClient.getInstance().execute(runnable);
+        });
     }
     
     public boolean isRejoinInProgress() {
         return rejoinInProgress;
     }
-    
+
     public RejoinState getCurrentState() {
         return currentState;
     }
-    
+
     public boolean wasPlayerInHousing() {
         return wasInHousing;
     }
-    
+
+    public long getLastDisconnectMessagesFetch() {
+        return lastDisconnectMessagesFetch;
+    }
+
+    public void forceRefreshDisconnectMessages(Consumer<Boolean> callback) {
+        fetchDisconnectMessages(callback);
+    }
+
     public int getDisconnectIndicatorCount() {
         return disconnectIndicators.size();
     }
-    
-    public long getLastDisconnectMessagesFetch() {
-        return lastDisconnectMessagesFetch;
+
+    public void refreshDisconnectMessagesIfNeeded() {
+        long now = System.currentTimeMillis();
+        if (now - lastDisconnectMessagesFetch > DISCONNECT_MESSAGES_REFRESH_INTERVAL_MS) {
+            fetchDisconnectMessages(success -> {
+                if (success) {
+                }
+            });
+        }
+    }
+
+    private void runOnMainThread(Runnable action) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        client.execute(action);
     }
 }

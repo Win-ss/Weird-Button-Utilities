@@ -4,7 +4,7 @@ build/
 out/
 classes/
 gradlew.bat
-/gradle
+
 # idea
 .idea/
 *.iml
@@ -25,7 +25,7 @@ logs/
 # other
 *.log
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 *.js
 *.md
 *.txt
-/.github
