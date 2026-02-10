@@ -183,6 +183,8 @@ public class AutoRejoin {
             lowerReason.contains("connection refused") ||
             lowerReason.contains("network") ||
             lowerReason.contains("io exception") ||
+            lowerReason.contains("permission denied") ||
+            lowerReason.contains("getsockopt") ||
             lowerReason.contains("limbo")) {
             return true;
         }
