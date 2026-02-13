@@ -403,7 +403,7 @@ public class AuthService {
             String uuid = player.getUuid().toString();
             String urlStr = config.authServerUrl + "/auth/blacklist-check/" + uuid;
 
-            NetworkManager.get(urlStr, false)
+            NetworkManager.get(urlStr, false, config.authToken)
                 .thenAccept(response -> {
                     boolean blacklisted = response.isSuccess() && parseJsonBoolean(response.body(), "blacklisted");
                     runOnMainThread(() -> callback.accept(blacklisted));

@@ -19,6 +19,7 @@ import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
+import net.minecraft.client.MinecraftClient;
 
 import java.util.List;
 
@@ -714,6 +715,11 @@ public class WBUtilsCommand {
                 .then(literal("diagnostics")
                     .executes(context -> {
                         context.getSource().sendFeedback(Text.literal(Messages.get("command.system.diagnostics_running")));
+                        AuthService.testEndpoints(msg ->
+                            MinecraftClient.getInstance().execute(() ->
+                                context.getSource().sendFeedback(Text.literal(msg))
+                            )
+                        );
                         return 1;
                     })
                 )
@@ -744,13 +750,16 @@ public class WBUtilsCommand {
                 .then(literal("modusers")
                     .then(literal("list")
                         .executes(context -> {
-                            List<String> users = WBUtilsClient.getModUserManager().getOnlineModUsers();
-                            if (users.isEmpty()) {
-                                context.getSource().sendFeedback(Text.literal(Messages.get("command.system.modusers.none")));
-                            } else {
-                                context.getSource().sendFeedback(Text.literal(Messages.format("command.system.modusers.header", "count", String.valueOf(users.size()))));
-                                context.getSource().sendFeedback(Text.literal(Messages.getColorAccent() + String.join(", ", users)));
-                            }
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "Syncing mod users..."));
+                            WBUtilsClient.getModUserManager().syncOnlineModUsers(success -> {
+                                List<String> users = WBUtilsClient.getModUserManager().getOnlineModUsers();
+                                if (users.isEmpty()) {
+                                    context.getSource().sendFeedback(Text.literal(Messages.get("command.system.modusers.none")));
+                                } else {
+                                    context.getSource().sendFeedback(Text.literal(Messages.format("command.system.modusers.header", "count", String.valueOf(users.size()))));
+                                    context.getSource().sendFeedback(Text.literal(Messages.getColorAccent() + String.join(", ", users)));
+                                }
+                            });
                             return 1;
                         })
                     )

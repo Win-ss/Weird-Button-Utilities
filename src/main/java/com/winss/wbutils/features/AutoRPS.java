@@ -25,10 +25,6 @@ import java.util.concurrent.CompletableFuture;
  * Modes:
  * - RANDOM
  * - ANALYTICAL: Uses statistics to make an informed choice (requires 100+ games played)
- * 
- * The feature detects when the RPS GUI is opened,
- * automatically clicks the appropriate slot after a small delay to appear natural.
- * 
  * Item detection:
  * - Stone (cobblestone) = Rock
  * - Paper = Paper  
@@ -53,6 +49,8 @@ public class AutoRPS {
     private int currentDelayTarget = 0;
     private String pendingChoice = null;
     private boolean hasClicked = false;
+    private int highlightSlotIndex = -1;
+    private boolean highlightReady = false;
     
     private RPSTracker.RPSStats cachedStats = null;
     private boolean fetchingStats = false;
@@ -91,12 +89,14 @@ public class AutoRPS {
         if (!rpsScreenOpen) {
             rpsScreenOpen = true;
             hasClicked = false;
+            highlightReady = false;
+            highlightSlotIndex = -1;
             delayTicks = 0;
             
-            currentDelayTarget = MIN_DELAY_TICKS + random.nextInt(MAX_DELAY_TICKS - MIN_DELAY_TICKS + 1);
+            currentDelayTarget = 0;
             
             if (config.debugAutoRPS) {
-                WBUtilsClient.LOGGER.info("[AutoRPS] RPS screen detected! Waiting {} ticks before action", currentDelayTarget);
+                WBUtilsClient.LOGGER.info("[AutoRPS] RPS screen detected! Highlighting choice");
             }
             
             determineChoice(config);
@@ -118,8 +118,41 @@ public class AutoRPS {
             return;
         }
         
-        performClick(client, handledScreen, config);
+        if (!highlightReady) {
+            ScreenHandler handler = handledScreen.getScreenHandler();
+            int targetSlot = findSlotForChoice(handler, pendingChoice);
+            
+            if (targetSlot == -1) {
+                if (config.debugAutoRPS) {
+                    WBUtilsClient.LOGGER.warn("[AutoRPS] Could not find slot for choice: {}", pendingChoice);
+                }
+                return;
+            }
+            
+            highlightSlotIndex = targetSlot;
+            highlightReady = true;
+            
+            if (config.debugAutoRPS) {
+                WBUtilsClient.LOGGER.info("[AutoRPS] Highlighting slot {} for choice {}", targetSlot, pendingChoice);
+            }
+            
+            if (config.autoRPSShowFeedback && client.player != null) {
+                String choiceColor = getChoiceColor(pendingChoice);
+                String modeStr = config.autoRPSMode == Mode.ANALYTICAL ? "Analytical" : "Random";
+                
+                client.player.sendMessage(Text.literal(Messages.format("autorps.feedback.highlight",
+                    "color", choiceColor, "choice", pendingChoice, "mode", modeStr)), false);
+                
+                if (config.autoRPSMode == Mode.ANALYTICAL && cachedStats != null 
+                        && cachedStats.situationalReasoning != null 
+                        && cachedStats.situationalRecommendation != null) {
+                    client.player.sendMessage(Text.literal(Messages.format("autorps.feedback.reason", 
+                        "reason", cachedStats.situationalReasoning)), false);
+                }
+            }
+        }
     }
+
     private void determineChoice(ModConfig config) {
         if (config.autoRPSMode == Mode.RANDOM) {
             String[] choices = {"ROCK", "PAPER", "SCISSORS"};
@@ -187,8 +220,19 @@ public class AutoRPS {
         }
     }
 
-    private void performClick(MinecraftClient client, HandledScreen<?> handledScreen, ModConfig config) {
-        ScreenHandler handler = handledScreen.getScreenHandler();
+
+    public void onConfirmClick() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+        
+        if (!highlightReady || highlightSlotIndex == -1 || hasClicked) {
+            return;
+        }
+        
+        if (!(client.currentScreen instanceof HandledScreen<?> handledScreen)) {
+            return;
+        }
+        
         ClientPlayerInteractionManager interactionManager = client.interactionManager;
         ClientPlayerEntity player = client.player;
         
@@ -196,41 +240,32 @@ public class AutoRPS {
             return;
         }
         
-        int targetSlot = findSlotForChoice(handler, pendingChoice);
-        
-        if (targetSlot == -1) {
-            if (config.debugAutoRPS) {
-                WBUtilsClient.LOGGER.warn("[AutoRPS] Could not find slot for choice: {}", pendingChoice);
-            }
-            return;
-        }
-        
+        ScreenHandler handler = handledScreen.getScreenHandler();
         int syncId = handler.syncId;
-        interactionManager.clickSlot(syncId, targetSlot, 0, SlotActionType.PICKUP, player);
+        interactionManager.clickSlot(syncId, highlightSlotIndex, 0, SlotActionType.PICKUP, player);
         hasClicked = true;
         
         if (config.debugAutoRPS) {
-            WBUtilsClient.LOGGER.info("[AutoRPS] Clicked slot {} for choice {}", targetSlot, pendingChoice);
+            WBUtilsClient.LOGGER.info("[AutoRPS] Confirmed click on slot {} for choice {}", highlightSlotIndex, pendingChoice);
         }
         
         if (config.autoRPSShowFeedback) {
-            String choiceColor = switch (pendingChoice) {
-                case "ROCK" -> "§7";
-                case "PAPER" -> "§f";
-                case "SCISSORS" -> "§c";
-                default -> "§b";
-            };
+            String choiceColor = getChoiceColor(pendingChoice);
             String modeStr = config.autoRPSMode == Mode.ANALYTICAL ? "Analytical" : "Random";
             
             player.sendMessage(Text.literal(Messages.format("autorps.feedback.selected", 
                 "color", choiceColor, "choice", pendingChoice, "mode", modeStr)), false);
-            
-            if (config.autoRPSMode == Mode.ANALYTICAL && cachedStats != null && cachedStats.situationalRecommendation != null) {
-                if (cachedStats.situationalReasoning != null) {
-                    player.sendMessage(Text.literal(Messages.format("autorps.feedback.reason", "reason", cachedStats.situationalReasoning)), false);
-                }
-            }
         }
+    }
+
+    public void onPlayerManualChoice() {
+        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+        if (config.debugAutoRPS) {
+            WBUtilsClient.LOGGER.info("[AutoRPS] Player made manual choice, clearing highlight");
+        }
+        hasClicked = true;
+        highlightSlotIndex = -1;
+        highlightReady = false;
     }
     
     /**
@@ -265,7 +300,24 @@ public class AutoRPS {
         
         return -1;
     }
-    
+
+
+    public boolean isRPSScreenActive() {
+        return rpsScreenOpen && !hasClicked;
+    }
+
+    public int getHighlightSlotIndex() {
+        return highlightReady ? highlightSlotIndex : -1;
+    }
+
+    private String getChoiceColor(String choice) {
+        return switch (choice) {
+            case "ROCK" -> "§7";
+            case "PAPER" -> "§f";
+            case "SCISSORS" -> "§c";
+            default -> "§b";
+        };
+    }
 
     private void resetState() {
         rpsScreenOpen = false;
@@ -273,6 +325,8 @@ public class AutoRPS {
         currentDelayTarget = 0;
         pendingChoice = null;
         hasClicked = false;
+        highlightSlotIndex = -1;
+        highlightReady = false;
     }
     
     public static String getModeDisplayString(Mode mode) {

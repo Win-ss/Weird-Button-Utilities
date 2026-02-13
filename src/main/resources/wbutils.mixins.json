@@ -11,7 +11,8 @@
     "MouseMixin",
     "ClientPlayerEntityMixin",
     "PlayerListHudAccessor",
-    "DisconnectedScreenMixin"
+    "DisconnectedScreenMixin",
+    "HandledScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1

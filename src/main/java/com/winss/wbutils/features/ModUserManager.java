@@ -10,6 +10,7 @@ import net.minecraft.text.Text;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,6 +20,7 @@ import java.util.function.Consumer;
 public class ModUserManager {
     private static final long SYNC_INTERVAL_MS = 60_000L;
     private final Set<String> onlineModUsers = ConcurrentHashMap.newKeySet();
+    private final Map<String, String> originalCaseNames = new ConcurrentHashMap<>();
     private long lastSyncTime = 0L;
     private boolean hasNotifiedOnline = false;
     
@@ -30,7 +32,11 @@ public class ModUserManager {
     
 
     public List<String> getOnlineModUsers() {
-        return new ArrayList<>(onlineModUsers);
+        List<String> result = new ArrayList<>();
+        for (String lower : onlineModUsers) {
+            result.add(originalCaseNames.getOrDefault(lower, lower));
+        }
+        return result;
     }
 
     public int getOnlineCount() {
@@ -57,7 +63,7 @@ public class ModUserManager {
         CompletableFuture.runAsync(() -> {
             String urlStr = config.authServerUrl + "/modusers/online";
             String json = String.format(
-                "{\"username\":\"%s\",\"uuid\":\"%s\",\"action\":\"join\",\"version\":\"%s\"}",
+                "{\"username\":\"%s\",\"minecraft_uuid\":\"%s\",\"action\":\"join\",\"version\":\"%s\"}",
                 escapeJson(playerName),
                 escapeJson(playerUuid),
                 escapeJson(WBUtilsClient.getVersion())
@@ -99,7 +105,7 @@ public class ModUserManager {
         CompletableFuture.runAsync(() -> {
             String urlStr = config.authServerUrl + "/modusers/online";
             String json = String.format(
-                "{\"username\":\"%s\",\"uuid\":\"%s\",\"action\":\"leave\"}",
+                "{\"username\":\"%s\",\"minecraft_uuid\":\"%s\",\"action\":\"leave\"}",
                 escapeJson(playerName),
                 escapeJson(playerUuid)
             );
@@ -155,6 +161,7 @@ public class ModUserManager {
     private void parseOnlineModUsersResponse(String json) {
         try {
             onlineModUsers.clear();
+            originalCaseNames.clear();
             
             if (!json.contains("\"users\"")) return;
             
@@ -169,7 +176,9 @@ public class ModUserManager {
             for (String part : parts) {
                 String name = part.trim().replace("\"", "");
                 if (!name.isEmpty()) {
-                    onlineModUsers.add(name.toLowerCase());
+                    String lower = name.toLowerCase();
+                    onlineModUsers.add(lower);
+                    originalCaseNames.put(lower, name);
                 }
             }
         } catch (Exception e) {
@@ -193,6 +202,7 @@ public class ModUserManager {
     public void reset() {
         notifyOffline();
         onlineModUsers.clear();
+        originalCaseNames.clear();
         hasNotifiedOnline = false;
     }
     
