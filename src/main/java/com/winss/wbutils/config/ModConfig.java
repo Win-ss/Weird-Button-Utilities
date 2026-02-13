@@ -66,6 +66,12 @@ public class ModConfig {
     public boolean statSpyEnabled = true;
     public boolean debugStatSpy = false;
     
+    // MayhemBlast feature
+    public boolean mayhemBlastEnabled = false;
+    public boolean mayhemDedicationMode = false;
+    public int mayhemInactivitySeconds = 60;
+    public boolean debugMayhemBlast = false;
+    
     // Debug options
     public boolean debugBounty = false;
     public boolean debugDamage = false;

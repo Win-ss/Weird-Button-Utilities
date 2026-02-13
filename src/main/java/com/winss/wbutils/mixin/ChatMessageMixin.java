@@ -16,7 +16,7 @@ import java.util.Set;
 public class ChatMessageMixin {
     
     private static final Set<String> KNOWN_SUBCOMMANDS = Set.of(
-        "auth", "setserver", "setwebhook", "koth", "help", "ktrack", "housing", "rps", "debug", "status", "autorps", "autorejoin", "unwrap", "bootlist"
+        "auth", "setserver", "setwebhook", "koth", "help", "ktrack", "housing", "rps", "debug", "status", "autorps", "autorejoin", "unwrap", "bootlist", "mayhem"
     );
     
     @Inject(method = "sendChatMessage", at = @At("HEAD"), cancellable = true)

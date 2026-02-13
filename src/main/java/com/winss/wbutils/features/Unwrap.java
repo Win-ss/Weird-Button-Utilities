@@ -25,7 +25,7 @@ public class Unwrap {
     private static final String TELEPORT_BLOCKED_MESSAGE_ROAD = "* You cannot be on the road when you want to do this!";
     
     private static final Set<String> DEFAULT_UNWRAP_COMMANDS = new HashSet<>(Arrays.asList(
-        "spawn", "math", "leaderboards", "goafk", "rps"
+        "spawn", "math", "leaderboard", "goafk", "rps", "trivia"
     ));
     
     private String lastCommand = null;

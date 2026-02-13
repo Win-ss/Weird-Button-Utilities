@@ -20,6 +20,7 @@ import com.winss.wbutils.features.ShopHelper;
 import com.winss.wbutils.features.Unwrap;
 import com.winss.wbutils.features.BootlistTracker;
 import com.winss.wbutils.features.StatSpy;
+import com.winss.wbutils.features.MayhemBlast;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -50,6 +51,7 @@ public class WBUtilsClient implements ClientModInitializer {
     private static ModUserManager modUserManager;
     private static BootlistTracker bootlistTracker;
     private static StatSpy statSpy;
+    private static MayhemBlast mayhemBlast;
 
     @Override
     public void onInitializeClient() {
@@ -69,6 +71,7 @@ public class WBUtilsClient implements ClientModInitializer {
         modUserManager = new ModUserManager();
         bootlistTracker = new BootlistTracker();
         statSpy = new StatSpy();
+        mayhemBlast = new MayhemBlast();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             housingDetector.onClientTick();
@@ -87,6 +90,7 @@ public class WBUtilsClient implements ClientModInitializer {
                 modUserManager.onClientTick();
                 bootlistTracker.onClientTick();
                 statSpy.onClientTick();
+                mayhemBlast.onClientTick();
             }
             QuestHelper.onClientTick();
             ShopHelper.onClientTick();
@@ -149,5 +153,9 @@ public class WBUtilsClient implements ClientModInitializer {
     
     public static StatSpy getStatSpy() {
         return statSpy;
+    }
+    
+    public static MayhemBlast getMayhemBlast() {
+        return mayhemBlast;
     }
 }

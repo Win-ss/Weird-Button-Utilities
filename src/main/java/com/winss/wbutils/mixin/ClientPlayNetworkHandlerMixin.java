@@ -111,6 +111,12 @@ public class ClientPlayNetworkHandlerMixin {
                         WBUtilsClient.getUnwrap().handleChatMessage(message);
                     }
                 }
+                
+                if (WBUtilsClient.getMayhemBlast() != null && config.mayhemBlastEnabled) {
+                    if (!isPlayerChatMessage(stripped)) {
+                        WBUtilsClient.getMayhemBlast().handleChatMessage(message);
+                    }
+                }
             }
         }
     }

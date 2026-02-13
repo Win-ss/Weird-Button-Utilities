@@ -16,7 +16,7 @@ Features:
 - **RPS Tracker** - Tracks the games for data gathering and picking the best moves.
 - **StatSpy** - ever wonder if someone stat checked you while you are away? for some reason??
 - **Unwrap** - bypasses "* You cannot teleport while you're in the Map!".
-
+- **Mayhem Blast** - Alerts you when mayhem happens, while accounting if you are actually playing or afk
 
 Commands:
 - `/quests` - why click 2 times to open quest?

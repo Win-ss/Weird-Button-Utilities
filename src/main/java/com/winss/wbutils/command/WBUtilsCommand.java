@@ -901,6 +901,16 @@ public class WBUtilsCommand {
                             return 1;
                         })
                     )
+                    .then(literal("mayhem")
+                        .executes(context -> {
+                            ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                            config.debugMayhemBlast = !config.debugMayhemBlast;
+                            WBUtilsClient.getConfigManager().save();
+                            String state = config.debugMayhemBlast ? Messages.get("status.on") : Messages.get("status.off");
+                            context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.mayhem", "state", state)));
+                            return 1;
+                        })
+                    )
                     .then(literal("all")
                         .executes(context -> {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
@@ -918,6 +928,7 @@ public class WBUtilsCommand {
                             config.debugModUsers = newState;
                             config.debugBootlist = newState;
                             config.debugStatSpy = newState;
+                            config.debugMayhemBlast = newState;
                             config.kothDebugLogs = newState;
                             config.ktrackDebugLogs = newState;
                             WBUtilsClient.getConfigManager().save();
@@ -1094,6 +1105,65 @@ public class WBUtilsCommand {
                     context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils statspy toggle " + Messages.getColorAccent() + "- " + Messages.get("command.statspy.help.toggle")));
                     context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils statspy status " + Messages.getColorAccent() + "- " + Messages.get("command.statspy.help.status")));
                     context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils statspy clear " + Messages.getColorAccent() + "- " + Messages.get("command.statspy.help.clear")));
+                    return 1;
+                })
+            )
+            // MayhemBlast - button mayhem alert
+            .then(literal("mayhem")
+                .then(literal("toggle")
+                    .executes(context -> {
+                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                        config.mayhemBlastEnabled = !config.mayhemBlastEnabled;
+                        WBUtilsClient.getConfigManager().save();
+                        String state = config.mayhemBlastEnabled ? Messages.get("status.enabled") : Messages.get("status.disabled");
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.mayhem.toggle", "state", state)));
+                        return 1;
+                    })
+                )
+                .then(literal("dedication")
+                    .executes(context -> {
+                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                        config.mayhemDedicationMode = !config.mayhemDedicationMode;
+                        WBUtilsClient.getConfigManager().save();
+                        String state = config.mayhemDedicationMode ? Messages.get("status.enabled") : Messages.get("status.disabled");
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.mayhem.dedication.toggle", "state", state)));
+                        return 1;
+                    })
+                )
+                .then(literal("inactivity")
+                    .then(argument("seconds", IntegerArgumentType.integer(10, 1800))
+                        .executes(context -> {
+                            int seconds = IntegerArgumentType.getInteger(context, "seconds");
+                            ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                            config.mayhemInactivitySeconds = seconds;
+                            WBUtilsClient.getConfigManager().save();
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.mayhem.inactivity.set", "seconds", String.valueOf(seconds))));
+                            return 1;
+                        })
+                    )
+                    .executes(context -> {
+                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.mayhem.inactivity.current", "seconds", String.valueOf(config.mayhemInactivitySeconds))));
+                        return 1;
+                    })
+                )
+                .then(literal("status")
+                    .executes(context -> {
+                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                        context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.mayhem.status.header")));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.mayhem.status.enabled", "value", config.mayhemBlastEnabled ? Messages.get("common.yes") : Messages.get("common.no"))));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.mayhem.status.dedication", "value", config.mayhemDedicationMode ? Messages.get("common.yes") : Messages.get("common.no"))));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.mayhem.status.inactivity", "value", Messages.getColorAccent() + config.mayhemInactivitySeconds + "s")));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.mayhem.status.debug", "value", config.debugMayhemBlast ? Messages.get("status.on") : Messages.get("status.off"))));
+                        return 1;
+                    })
+                )
+                .executes(context -> {
+                    context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.mayhem.help.header")));
+                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils mayhem toggle " + Messages.getColorAccent() + "- " + Messages.get("command.mayhem.help.toggle")));
+                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils mayhem dedication " + Messages.getColorAccent() + "- " + Messages.get("command.mayhem.help.dedication")));
+                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils mayhem inactivity <seconds> " + Messages.getColorAccent() + "- " + Messages.get("command.mayhem.help.inactivity")));
+                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils mayhem status " + Messages.getColorAccent() + "- " + Messages.get("command.mayhem.help.status")));
                     return 1;
                 })
             )
