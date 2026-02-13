@@ -371,11 +371,17 @@ public class RPSTracker {
             
             String urlStr = config.authServerUrl + "/rps/stats/" + uuid;
             
+            StringBuilder params = new StringBuilder();
+            params.append("?session_id=").append(sessionId);
+            params.append("&session_games=").append(sessionGameCount);
+            
             if (lastNpcChoice != null && lastPlayerChoice != null && lastResult != null) {
-                urlStr += "?prev_npc=" + lastNpcChoice + 
-                          "&prev_player=" + lastPlayerChoice + 
-                          "&prev_result=" + lastResult.name();
+                params.append("&prev_npc=").append(lastNpcChoice);
+                params.append("&prev_player=").append(lastPlayerChoice);
+                params.append("&prev_result=").append(lastResult.name());
             }
+            
+            urlStr += params.toString();
 
             NetworkManager.get(urlStr, true, config.authToken)
                 .thenAccept(response -> {
