@@ -82,7 +82,7 @@ public class RPSTracker {
     
     private RPSStats cachedStats = null;
     private long lastStatsFetchTime = 0;
-    private static final long STATS_CACHE_DURATION_MS = 30000;
+    private static final long STATS_CACHE_DURATION_MS = 5000;
     
     public enum GamePhase {
         IDLE,
