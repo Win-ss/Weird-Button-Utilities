@@ -7,6 +7,8 @@ import com.winss.wbutils.network.NetworkManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
 import javax.sound.sampled.*;
 import java.io.BufferedInputStream;
@@ -31,6 +33,13 @@ import org.lwjgl.glfw.GLFW;
 public class MayhemBlast {
 
     private static final String MAYHEM_MESSAGE = "* [!] MAYHEM! The BUTTON has no cooldown for 10s!";
+
+    private static final BlockPos EXCLUSION_MIN = new BlockPos(-20, 45, 118);
+    private static final BlockPos EXCLUSION_MAX = new BlockPos(-13, 60, 126);
+
+    private static final Vec3d BUTTON_CITY = new Vec3d(61, 20, -67);
+    private static final Vec3d BUTTON_WILD_WEST = new Vec3d(-62, 148, -60);
+    private static final double BUTTON_PROXIMITY_RANGE = 50.0;
 
     private static final long ALERT_COOLDOWN_MS = 5_000L; 
     private static final long REPORT_DELAY_MS = 4_000L; 
@@ -105,6 +114,23 @@ public class MayhemBlast {
         }
 
         MinecraftClient client = MinecraftClient.getInstance();
+
+        // Suppress alert
+        ClientPlayerEntity localPlayer = client.player;
+        if (localPlayer != null && isPlayerInExclusionZone(localPlayer)) {
+            if (config.debugMayhemBlast) {
+                WBUtilsClient.LOGGER.info("[MayhemBlast] Player is in exclusion zone, ignoring");
+            }
+            return;
+        }
+
+        if (localPlayer != null && !isPlayerNearButton(localPlayer)) {
+            if (config.debugMayhemBlast) {
+                WBUtilsClient.LOGGER.info("[MayhemBlast] Player is not within {}  blocks of any button, ignoring", BUTTON_PROXIMITY_RANGE);
+            }
+            return;
+        }
+
         boolean focused = client.isWindowFocused();
 
         if (config.debugMayhemBlast) {
@@ -157,6 +183,20 @@ public class MayhemBlast {
         }
     }
 
+
+    private boolean isPlayerInExclusionZone(ClientPlayerEntity player) {
+        Vec3d pos = player.getPos();
+        return pos.x >= EXCLUSION_MIN.getX() && pos.x <= EXCLUSION_MAX.getX()
+            && pos.y >= EXCLUSION_MIN.getY() && pos.y <= EXCLUSION_MAX.getY()
+            && pos.z >= EXCLUSION_MIN.getZ() && pos.z <= EXCLUSION_MAX.getZ();
+    }
+
+    private boolean isPlayerNearButton(ClientPlayerEntity player) {
+        Vec3d pos = player.getPos();
+        double distCity = pos.distanceTo(BUTTON_CITY);
+        double distWild = pos.distanceTo(BUTTON_WILD_WEST);
+        return distCity <= BUTTON_PROXIMITY_RANGE || distWild <= BUTTON_PROXIMITY_RANGE;
+    }
 
     private boolean isAuthenticMayhemMessage(Text message, String plain, String stripped) {
         ModConfig config = WBUtilsClient.getConfigManager().getConfig();

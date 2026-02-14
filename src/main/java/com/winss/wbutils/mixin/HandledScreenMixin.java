@@ -5,6 +5,7 @@ import com.winss.wbutils.features.AutoRPS;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.screen.slot.Slot;
 import org.spongepowered.asm.mixin.Mixin;
@@ -39,7 +40,7 @@ public class HandledScreenMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void wbutils$onMouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        if (button != 0) return;
+        if (button != 0 && button != 1) return;
 
         AutoRPS autoRPS = WBUtilsClient.getAutoRPS();
         if (autoRPS == null || !autoRPS.isRPSScreenActive() || autoRPS.getHighlightSlotIndex() == -1) {
@@ -48,13 +49,18 @@ public class HandledScreenMixin {
 
         if (this.focusedSlot != null && this.focusedSlot.hasStack()) {
             ItemStack stack = this.focusedSlot.getStack();
-            boolean isRPSSlot = stack.getItem() == Items.COBBLESTONE
-                    || stack.getItem() == Items.STONE
-                    || stack.getItem() == Items.PAPER
-                    || stack.getItem() == Items.SHEARS;
+            Item item = stack.getItem();
+            boolean isRPSSlot = item == Items.COBBLESTONE
+                    || item == Items.STONE
+                    || item == Items.PAPER
+                    || item == Items.SHEARS;
 
             if (isRPSSlot) {
                 autoRPS.onPlayerManualChoice();
+                return;
+            } else if (item == Items.WHITE_STAINED_GLASS_PANE) {
+                autoRPS.onConfirmClick();
+                cir.setReturnValue(true);
                 return;
             } else {
                 return;
