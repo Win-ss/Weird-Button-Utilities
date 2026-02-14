@@ -247,7 +247,11 @@ public class RPSTracker {
                 return;
             }
             
-            if (currentPhase != GamePhase.PLAYER_CHOSE && currentPhase != GamePhase.NPC_CHOSE) {
+            boolean validPhase = currentPhase == GamePhase.PLAYER_CHOSE 
+                              || currentPhase == GamePhase.NPC_CHOSE
+                              || (result == GameResult.TIE && currentPhase == GamePhase.STARTED);
+            
+            if (!validPhase) {
                 if (config.debugRPS) {
                     WBUtilsClient.LOGGER.info("[RPSTracker] Ignoring duplicate result - phase was: {}", currentPhase);
                 }
@@ -257,7 +261,7 @@ public class RPSTracker {
             String capturedPlayerChoice = playerChoice;
             String capturedNpcChoice = npcChoice;
             
-            if (capturedPlayerChoice == null && capturedNpcChoice == null) {
+            if (capturedPlayerChoice == null && capturedNpcChoice == null && result != GameResult.TIE) {
                 if (config.debugRPS) {
                     WBUtilsClient.LOGGER.info("[RPSTracker] Ignoring result - no choices captured");
                 }
