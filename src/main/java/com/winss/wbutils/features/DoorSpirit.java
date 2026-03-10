@@ -279,6 +279,8 @@ public class DoorSpirit {
         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
         if (!config.doorSpiritEnabled) return;
         
+        if (config.requireHousing && !WBUtilsClient.getHousingDetector().isInDptb2Housing()) return;
+        
         MinecraftClient client = MinecraftClient.getInstance();
         ClientPlayerEntity player = client.player;
         
