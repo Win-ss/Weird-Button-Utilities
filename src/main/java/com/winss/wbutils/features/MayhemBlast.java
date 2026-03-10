@@ -39,7 +39,7 @@ public class MayhemBlast {
 
     private static final Vec3d BUTTON_CITY = new Vec3d(61, 20, -67);
     private static final Vec3d BUTTON_WILD_WEST = new Vec3d(-62, 148, -60);
-    private static final double BUTTON_PROXIMITY_RANGE = 50.0;
+    private static final double BUTTON_PROXIMITY_RANGE = 30.0;
 
     private static final long ALERT_COOLDOWN_MS = 5_000L; 
     private static final long REPORT_DELAY_MS = 4_000L; 
