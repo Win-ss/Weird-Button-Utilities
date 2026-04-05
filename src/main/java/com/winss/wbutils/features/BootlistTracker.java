@@ -11,8 +11,10 @@ import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,16 +28,25 @@ import java.util.regex.Pattern;
  */
 public class BootlistTracker {
     
-    private static final long SYNC_COOLDOWN_MS = 30 * 60 * 1000L;
+    private static final long SYNC_COOLDOWN_MS = 1 * 60 * 1000L;
     private static final int MAX_WAIT_TICKS = 60;
-    private static final int PARSE_DELAY_TICKS = 10;
+    private static final int MAX_TRACK_TICKS = 20 * 60;
+    private static final int PARSE_DELAY_TICKS = 4;
     
     private static final Pattern STORED_PATTERN = Pattern.compile("Stored:\\s*(\\d+)");
+    private static final Pattern BOOTS_TITLE_PATTERN = Pattern.compile("^Boots\\s+Catalog(?:\\s*\\[(\\d+)\\])?$", Pattern.CASE_INSENSITIVE);
     
     private boolean waitingForGui = false;
+    private boolean trackingGui = false;
     private boolean waitingToParse = false;
     private int waitTicks = 0;
+    private int trackTicks = 0;
     private int parseDelayTicks = 0;
+
+    private String currentPageKey = null;
+    private String pendingPageKey = null;
+    private final Set<String> parsedPages = new HashSet<>();
+    private final Map<String, Integer> pendingBootsData = new HashMap<>();
     
     private long lastSyncTime = 0;
     
@@ -54,7 +65,7 @@ public class BootlistTracker {
         long now = System.currentTimeMillis();
         if (now - lastSyncTime < SYNC_COOLDOWN_MS) {
             long remainingMs = SYNC_COOLDOWN_MS - (now - lastSyncTime);
-            long remainingMin = remainingMs / 60000;
+            long remainingMin = Math.max(1, (remainingMs + 59999) / 60000);
             if (config.debugBootlist) {
                 WBUtilsClient.LOGGER.info("[BootlistTracker] Sync on cooldown, {} minutes remaining", remainingMin);
             }
@@ -62,9 +73,15 @@ public class BootlistTracker {
         }
         
         waitingForGui = true;
+        trackingGui = false;
         waitingToParse = false;
         waitTicks = 0;
+        trackTicks = 0;
         parseDelayTicks = 0;
+        currentPageKey = null;
+        pendingPageKey = null;
+        parsedPages.clear();
+        pendingBootsData.clear();
         
         if (config.debugBootlist) {
             WBUtilsClient.LOGGER.info("[BootlistTracker] Started monitoring for /boots GUI");
@@ -83,15 +100,20 @@ public class BootlistTracker {
         if (waitingForGui && !waitingToParse) {
             waitTicks++;
             
-            if (client.currentScreen instanceof HandledScreen<?>) {
-                waitingForGui = false;
-                waitingToParse = true;
-                parseDelayTicks = PARSE_DELAY_TICKS;
-                
-                if (config.debugBootlist) {
-                    WBUtilsClient.LOGGER.info("[BootlistTracker] GUI opened, waiting {} ticks before parsing", PARSE_DELAY_TICKS);
+            if (client.currentScreen instanceof HandledScreen<?> handledScreen) {
+                String pageKey = getBootsPageKey(handledScreen);
+                if (pageKey != null) {
+                    waitingForGui = false;
+                    trackingGui = true;
+                    trackTicks = 0;
+                    currentPageKey = pageKey;
+                    queuePageParse(pageKey);
+
+                    if (config.debugBootlist) {
+                        WBUtilsClient.LOGGER.info("[BootlistTracker] Boots GUI opened on page {}, waiting {} ticks before parsing", pageKey, PARSE_DELAY_TICKS);
+                    }
+                    return;
                 }
-                return;
             }
             
             if (waitTicks >= MAX_WAIT_TICKS) {
@@ -102,29 +124,107 @@ public class BootlistTracker {
             }
             return;
         }
-        
-        if (waitingToParse) {
+
+        if (trackingGui) {
+            trackTicks++;
+
+            if (trackTicks >= MAX_TRACK_TICKS) {
+                if (config.debugBootlist) {
+                    WBUtilsClient.LOGGER.warn("[BootlistTracker] Tracking timeout reached, finalizing current data");
+                }
+                finalizeTracking(config);
+                return;
+            }
+
+            if (!(client.currentScreen instanceof HandledScreen<?> handledScreen)) {
+                finalizeTracking(config);
+                return;
+            }
+
+            String pageKey = getBootsPageKey(handledScreen);
+            if (pageKey == null) {
+                finalizeTracking(config);
+                return;
+            }
+
+            if (!pageKey.equals(currentPageKey)) {
+                currentPageKey = pageKey;
+                if (!parsedPages.contains(pageKey)) {
+                    queuePageParse(pageKey);
+                    if (config.debugBootlist) {
+                        WBUtilsClient.LOGGER.info("[BootlistTracker] Detected Boots Catalog page change to {}", pageKey);
+                    }
+                }
+            }
+
+            if (!waitingToParse) {
+                return;
+            }
+
             if (parseDelayTicks > 0) {
                 parseDelayTicks--;
                 return;
             }
-            
-            if (client.currentScreen instanceof HandledScreen<?> handledScreen) {
-                Map<String, Integer> boots = parseBootsGui(handledScreen);
-                
-                if (!boots.isEmpty()) {
-                    syncToServer(boots);
-                    lastBootsData.clear();
-                    lastBootsData.putAll(boots);
-                }
-                
-                if (config.debugBootlist) {
-                    WBUtilsClient.LOGGER.info("[BootlistTracker] Parsed {} boot types from GUI", boots.size());
-                }
+
+            Map<String, Integer> boots = parseBootsGui(handledScreen);
+            mergePendingBoots(boots);
+
+            String parsedPage = pendingPageKey != null ? pendingPageKey : pageKey;
+            parsedPages.add(parsedPage);
+            waitingToParse = false;
+            pendingPageKey = null;
+
+            if (config.debugBootlist) {
+                WBUtilsClient.LOGGER.info("[BootlistTracker] Parsed {} boot types from page {}", boots.size(), parsedPage);
             }
-            
-            reset();
+            return;
         }
+        
+    }
+
+    private void queuePageParse(String pageKey) {
+        waitingToParse = true;
+        pendingPageKey = pageKey;
+        parseDelayTicks = PARSE_DELAY_TICKS;
+    }
+
+    private void mergePendingBoots(Map<String, Integer> pageBoots) {
+        for (Map.Entry<String, Integer> entry : pageBoots.entrySet()) {
+            pendingBootsData.merge(entry.getKey(), entry.getValue(), Math::max);
+        }
+    }
+
+    private void finalizeTracking(ModConfig config) {
+        if (!pendingBootsData.isEmpty()) {
+            Map<String, Integer> payload = new HashMap<>(pendingBootsData);
+            syncToServer(payload);
+            lastBootsData.clear();
+            lastBootsData.putAll(payload);
+
+            if (config.debugBootlist) {
+                WBUtilsClient.LOGGER.info("[BootlistTracker] Finalized sync with {} boot types across {} page(s)", payload.size(), parsedPages.size());
+            }
+        } else if (config.debugBootlist) {
+            WBUtilsClient.LOGGER.info("[BootlistTracker] No boot data collected before GUI closed");
+        }
+
+        reset();
+    }
+
+    private String getBootsPageKey(HandledScreen<?> screen) {
+        String title = screen.getTitle().getString();
+        if (title == null) {
+            return null;
+        }
+
+        String cleanTitle = title.replaceAll("§[0-9a-fk-or]", "").trim();
+        Matcher matcher = BOOTS_TITLE_PATTERN.matcher(cleanTitle);
+        if (!matcher.matches()) {
+            return null;
+        }
+
+        String page = matcher.group(1);
+        return (page == null || page.isBlank()) ? "1" : page;
     }
     
 
@@ -259,9 +359,15 @@ public class BootlistTracker {
     
     private void reset() {
         waitingForGui = false;
+        trackingGui = false;
         waitingToParse = false;
         waitTicks = 0;
+        trackTicks = 0;
         parseDelayTicks = 0;
+        currentPageKey = null;
+        pendingPageKey = null;
+        parsedPages.clear();
+        pendingBootsData.clear();
     }
 
     public boolean isWaiting() {

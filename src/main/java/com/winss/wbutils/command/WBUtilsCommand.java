@@ -1000,7 +1000,7 @@ public class WBUtilsCommand {
                         
                         long cooldownMs = tracker.getRemainingCooldownMs();
                         if (cooldownMs > 0) {
-                            long cooldownMin = cooldownMs / 60000;
+                            long cooldownMin = Math.max(1, (cooldownMs + 59999) / 60000);
                             context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.bootlist.status.cooldown", "value", "§e" + cooldownMin + " minutes")));
                         } else {
                             context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.bootlist.status.cooldown", "value", Messages.get("status.ready"))));
@@ -1019,7 +1019,7 @@ public class WBUtilsCommand {
                         
                         long cooldownMs = tracker.getRemainingCooldownMs();
                         if (cooldownMs > 0) {
-                            long cooldownMin = cooldownMs / 60000;
+                            long cooldownMin = Math.max(1, (cooldownMs + 59999) / 60000);
                             context.getSource().sendFeedback(Text.literal("§c" + Messages.format("command.bootlist.sync.cooldown", "minutes", String.valueOf(cooldownMin))));
                             return 1;
                         }

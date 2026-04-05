@@ -1,7 +1,8 @@
 wbutils is a mod for dptb2
 currently confirmed support for fabric 1.21.4,
-possibly works till 1.21.9
 
+DOES NOT WORK WITH OTHER VERSIONS DUE TO RENDER EVENTS AND OTHER STUFF WITH CHAT, GUIS, AND CONNECTIONS. Support for newer versions could come soon. 
+  
 Start: start by linking your discord account, `/wbutils auth link` and enabling the features that you want, see `/wbutils help`
 
 
@@ -17,6 +18,7 @@ Features:
 - **StatSpy** - ever wonder if someone stat checked you while you are away? for some reason??
 - **Unwrap** - bypasses "* You cannot teleport while you're in the Map!".
 - **Mayhem Blast** - Alerts you when mayhem happens, while accounting if you are actually playing or afk
+- **Trap Avoider** - Warning, warns you if a person is near a trap's activation area
 
 Commands:
 - `/quests` - why click 2 times to open quest?
