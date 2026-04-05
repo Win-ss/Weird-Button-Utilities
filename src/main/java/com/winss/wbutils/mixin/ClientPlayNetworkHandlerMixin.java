@@ -106,17 +106,16 @@ public class ClientPlayNetworkHandlerMixin {
                     }
                 }
                 
-                if (WBUtilsClient.getUnwrap() != null && config.unwrapEnabled) {
-                    if (!isPlayerChatMessage(stripped)) {
-                        WBUtilsClient.getUnwrap().handleChatMessage(message);
-                    }
-                }
-                
                 if (WBUtilsClient.getMayhemBlast() != null && config.mayhemBlastEnabled) {
                     if (!isPlayerChatMessage(stripped)) {
                         WBUtilsClient.getMayhemBlast().handleChatMessage(message);
                     }
                 }
+
+                if (WBUtilsClient.getTrapAvoider() != null && config.trapAvoiderEnabled) {
+                    WBUtilsClient.getTrapAvoider().handleChatMessage(message);
+                }
+
             }
         }
     }

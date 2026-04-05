@@ -55,6 +55,7 @@ base {
 }
 
 task bumpVersion {
+    description = 'Bumps the mod version in gradle.properties by 0.01.'
     doLast {
         def propsFile = file('gradle.properties')
         def props = new Properties()
@@ -71,4 +72,14 @@ task bumpVersion {
         
         println "Bumped version from ${currentVersion} to ${nextVersion}"
     }
+}
+
+task bump {
+    description = 'Alias for bumpVersion.'
+    dependsOn bumpVersion
+}
+
+task version {
+    description = 'Alias for bumpVersion, kept for compatibility with wrapper commands.'
+    dependsOn bumpVersion
 }

@@ -16,7 +16,7 @@ import java.util.Set;
 public class ChatMessageMixin {
     
     private static final Set<String> KNOWN_SUBCOMMANDS = Set.of(
-        "auth", "setserver", "setwebhook", "koth", "help", "ktrack", "housing", "rps", "debug", "status", "autorps", "autorejoin", "unwrap", "bootlist", "mayhem"
+        "auth", "setserver", "setwebhook", "koth", "help", "ktrack", "housing", "rps", "debug", "status", "autorps", "autorejoin", "bootlist", "mayhem"
     );
     
     @Inject(method = "sendChatMessage", at = @At("HEAD"), cancellable = true)
@@ -29,10 +29,6 @@ public class ChatMessageMixin {
     
     @Inject(method = "sendChatCommand", at = @At("HEAD"), cancellable = true)
     private void wbutils$onSendChatCommand(String command, CallbackInfo ci) {
-        if (WBUtilsClient.getUnwrap() != null) {
-            WBUtilsClient.getUnwrap().onCommandSent(command);
-        }
-        
         // Intercept /boots command for boot tracking
         if (command.toLowerCase().equals("boots") || command.toLowerCase().startsWith("boots ")) {
             if (WBUtilsClient.getBootlistTracker() != null) {

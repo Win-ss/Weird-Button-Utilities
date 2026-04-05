@@ -1,8 +1,13 @@
 package com.winss.wbutils.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.winss.wbutils.WBUtilsClient;
 import com.winss.wbutils.Messages;
 import com.winss.wbutils.config.ModConfig;
@@ -12,7 +17,6 @@ import com.winss.wbutils.features.KillTracker;
 import com.winss.wbutils.features.ModUserManager;
 import com.winss.wbutils.features.RPSTracker;
 import com.winss.wbutils.features.AutoRPS;
-import com.winss.wbutils.features.Unwrap;
 import com.winss.wbutils.features.StatSpy;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.text.ClickEvent;
@@ -20,12 +24,23 @@ import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.*;
 
 public class WBUtilsCommand {
+    private static final SuggestionProvider<FabricClientCommandSource> TRAP_WHITELIST_PLAYER_SUGGESTIONS = (context, builder) -> {
+        String remaining = builder.getRemaining().toLowerCase();
+        if ("elite".startsWith(remaining)) {
+            builder.suggest("elite");
+        }
+        return builder.buildFuture();
+    };
     
     public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
         dispatcher.register(literal("wbutils")
@@ -234,7 +249,7 @@ public class WBUtilsCommand {
                         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
                         config.ktrackEnabled = !config.ktrackEnabled;
                         WBUtilsClient.getConfigManager().save();
-                        String state = config.unwrapEnabled ? Messages.get("status.on") : Messages.get("status.off");
+                        String state = config.ktrackEnabled ? Messages.get("status.on") : Messages.get("status.off");
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.ktrack_toggle", "state", state)));
                         return 1;
                     })
@@ -485,222 +500,191 @@ public class WBUtilsCommand {
                     return 1;
                 })
             )
-            .then(literal("autorps")
-                .then(literal("toggle")
-                    .executes(context -> {
-                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                        config.autoRPSEnabled = !config.autoRPSEnabled;
-                        WBUtilsClient.getConfigManager().save();
-                        String state = config.autoRPSEnabled ? Messages.get("status.on") : Messages.get("status.off");
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.toggle", "state", state)));
-                        return 1;
-                    })
-                )
-                .then(literal("mode")
-                    .then(literal("random")
+            .then(literal("auto")
+                .then(literal("rps")
+                    .then(literal("toggle")
                         .executes(context -> {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                            config.autoRPSMode = AutoRPS.Mode.RANDOM;
+                            config.autoRPSEnabled = !config.autoRPSEnabled;
                             WBUtilsClient.getConfigManager().save();
-                            context.getSource().sendFeedback(Text.literal(Messages.withAccent("command.autorps.mode_random")));
+                            String state = config.autoRPSEnabled ? Messages.get("status.on") : Messages.get("status.off");
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.toggle", "state", state)));
                             return 1;
                         })
                     )
-                    .then(literal("analytical")
+                    .then(literal("mode")
+                        .then(literal("random")
+                            .executes(context -> {
+                                ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                                config.autoRPSMode = AutoRPS.Mode.RANDOM;
+                                WBUtilsClient.getConfigManager().save();
+                                context.getSource().sendFeedback(Text.literal(Messages.withAccent("command.autorps.mode_random")));
+                                return 1;
+                            })
+                        )
+                        .then(literal("analytical")
+                            .executes(context -> {
+                                ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                                config.autoRPSMode = AutoRPS.Mode.ANALYTICAL;
+                                WBUtilsClient.getConfigManager().save();
+                                context.getSource().sendFeedback(Text.literal(Messages.withAccent("command.autorps.mode_analytical")));
+                                
+                                WBUtilsClient.getRPSTracker().fetchStats(stats -> {
+                                    if (stats == null || !stats.analyticsAvailable || stats.totalGames < 100) {
+                                        int gamesNeeded = stats != null ? stats.gamesUntilAnalytics : 100;
+                                        context.getSource().sendFeedback(Text.literal("§e" + Messages.format("command.autorps.analytics_warning", "games", String.valueOf(gamesNeeded))));
+                                    }
+                                });
+                                return 1;
+                            })
+                        )
+                        .then(literal("off")
+                            .executes(context -> {
+                                ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                                config.autoRPSMode = AutoRPS.Mode.OFF;
+                                WBUtilsClient.getConfigManager().save();
+                                context.getSource().sendFeedback(Text.literal("§c" + Messages.get("command.autorps.mode_off")));
+                                return 1;
+                            })
+                        )
                         .executes(context -> {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                            config.autoRPSMode = AutoRPS.Mode.ANALYTICAL;
+                            config.autoRPSMode = AutoRPS.cycleMode(config.autoRPSMode);
                             WBUtilsClient.getConfigManager().save();
-                            context.getSource().sendFeedback(Text.literal(Messages.withAccent("command.autorps.mode_analytical")));
+                            String modeStr = AutoRPS.getModeDisplayString(config.autoRPSMode);
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.mode_set", "mode", modeStr)));
+                            return 1;
+                        })
+                    )
+                    .then(literal("feedback")
+                        .then(literal("on")
+                            .executes(context -> {
+                                ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                                config.autoRPSShowFeedback = true;
+                                WBUtilsClient.getConfigManager().save();
+                                context.getSource().sendFeedback(Text.literal(Messages.withAccent("command.autorps.feedback_on")));
+                                return 1;
+                            })
+                        )
+                        .then(literal("off")
+                            .executes(context -> {
+                                ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                                config.autoRPSShowFeedback = false;
+                                WBUtilsClient.getConfigManager().save();
+                                context.getSource().sendFeedback(Text.literal("§c" + Messages.get("command.autorps.feedback_off")));
+                                return 1;
+                            })
+                        )
+                    )
+                    .then(literal("status")
+                        .executes(context -> {
+                            ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                            
+                            context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.autorps.status.header")));
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.enabled", "value", config.autoRPSEnabled ? Messages.get("common.yes") : Messages.get("common.no"))));
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.mode", "value", AutoRPS.getModeDisplayString(config.autoRPSMode))));
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.feedback", "value", config.autoRPSShowFeedback ? Messages.get("status.on") : Messages.get("status.off"))));
                             
                             WBUtilsClient.getRPSTracker().fetchStats(stats -> {
-                                if (stats == null || !stats.analyticsAvailable || stats.totalGames < 100) {
-                                    int gamesNeeded = stats != null ? stats.gamesUntilAnalytics : 100;
-                                    context.getSource().sendFeedback(Text.literal("§e" + Messages.format("command.autorps.analytics_warning", "games", String.valueOf(gamesNeeded))));
+                                if (stats != null) {
+                                    if (stats.analyticsAvailable && stats.totalGames >= 100) {
+                                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.analytics", "value", Messages.get("status.available"))));
+                                        if (stats.recommendedMove != null) {
+                                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.recommended", "move", "§a" + stats.recommendedMove)));
+                                        }
+                                    } else {
+                                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.analytics", "value", Messages.get("status.need") + stats.gamesUntilAnalytics + Messages.get("status.more_games"))));
+                                    }
                                 }
                             });
                             return 1;
                         })
                     )
-                    .then(literal("off")
-                        .executes(context -> {
-                            ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                            config.autoRPSMode = AutoRPS.Mode.OFF;
-                            WBUtilsClient.getConfigManager().save();
-                            context.getSource().sendFeedback(Text.literal("§c" + Messages.get("command.autorps.mode_off")));
-                            return 1;
-                        })
-                    )
                     .executes(context -> {
-                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                        config.autoRPSMode = AutoRPS.cycleMode(config.autoRPSMode);
-                        WBUtilsClient.getConfigManager().save();
-                        String modeStr = AutoRPS.getModeDisplayString(config.autoRPSMode);
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.mode_set", "mode", modeStr)));
+                        context.getSource().sendFeedback(Text.literal(Messages.get("command.autorps.help.header")));
+                        context.getSource().sendFeedback(Text.literal(Messages.get("command.autorps.help.toggle")));
+                        context.getSource().sendFeedback(Text.literal(Messages.get("command.autorps.help.mode")));
+                        context.getSource().sendFeedback(Text.literal(Messages.get("command.autorps.help.feedback")));
+                        context.getSource().sendFeedback(Text.literal(Messages.get("command.autorps.help.status")));
                         return 1;
                     })
                 )
-                .then(literal("feedback")
-                    .then(literal("on")
+                .then(literal("rejoin")
+                    .then(literal("toggle")
                         .executes(context -> {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                            config.autoRPSShowFeedback = true;
+                            config.autoRejoinEnabled = !config.autoRejoinEnabled;
                             WBUtilsClient.getConfigManager().save();
-                            context.getSource().sendFeedback(Text.literal(Messages.withAccent("command.autorps.feedback_on")));
+                            String state = config.autoRejoinEnabled ? Messages.get("status.on") : Messages.get("status.off");
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.toggle", "state", state)));
                             return 1;
                         })
                     )
-                    .then(literal("off")
+                    .then(literal("status")
                         .executes(context -> {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                            config.autoRPSShowFeedback = false;
-                            WBUtilsClient.getConfigManager().save();
-                            context.getSource().sendFeedback(Text.literal("§c" + Messages.get("command.autorps.feedback_off")));
-                            return 1;
-                        })
-                    )
-                )
-                .then(literal("status")
-                    .executes(context -> {
-                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                        
-                        context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.autorps.status.header")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.enabled", "value", config.autoRPSEnabled ? Messages.get("common.yes") : Messages.get("common.no"))));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.mode", "value", AutoRPS.getModeDisplayString(config.autoRPSMode))));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.feedback", "value", config.autoRPSShowFeedback ? Messages.get("status.on") : Messages.get("status.off"))));
-                        
-                        WBUtilsClient.getRPSTracker().fetchStats(stats -> {
-                            if (stats != null) {
-                                if (stats.analyticsAvailable && stats.totalGames >= 100) {
-                                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.analytics", "value", Messages.get("status.available"))));
-                                    if (stats.recommendedMove != null) {
-                                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.recommended", "move", "§a" + stats.recommendedMove)));
-                                    }
-                                } else {
-                                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorps.status.analytics", "value", Messages.get("status.need") + stats.gamesUntilAnalytics + Messages.get("status.more_games"))));
-                                }
+                            var autoRejoin = WBUtilsClient.getAutoRejoin();
+                            
+                            context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.autorejoin.status.header")));
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.enabled", "value", config.autoRejoinEnabled ? Messages.get("common.yes") : Messages.get("common.no"))));
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.debug", "value", config.debugAutoRejoin ? Messages.get("status.on") : Messages.get("status.off"))));
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.in_progress", "value", autoRejoin.isRejoinInProgress() ? Messages.get("common.yes") : Messages.get("common.no"))));
+                            
+                            if (autoRejoin.isRejoinInProgress()) {
+                                context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.state", "value", Messages.getColorAccent() + autoRejoin.getCurrentState().name())));
                             }
-                        });
-                        return 1;
-                    })
-                )
-                .executes(context -> {
-                    context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.autorps.help.header")));
-                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils autorps toggle " + Messages.getColorAccent() + "- " + Messages.get("command.autorps.help.toggle")));
-                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils autorps mode <random|analytical|off> " + Messages.getColorAccent() + "- " + Messages.get("command.autorps.help.mode")));
-                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils autorps feedback <on|off> " + Messages.getColorAccent() + "- " + Messages.get("command.autorps.help.feedback")));
-                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils autorps status " + Messages.getColorAccent() + "- " + Messages.get("command.autorps.help.status")));
-                    return 1;
-                })
-            )
-            .then(literal("autorejoin")
-                .then(literal("toggle")
-                    .executes(context -> {
-                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                        config.autoRejoinEnabled = !config.autoRejoinEnabled;
-                        WBUtilsClient.getConfigManager().save();
-                        String state = config.autoRejoinEnabled ? Messages.get("status.on") : Messages.get("status.off");
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.toggle", "state", state)));
-                        return 1;
-                    })
-                )
-                .then(literal("status")
-                    .executes(context -> {
-                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                        var autoRejoin = WBUtilsClient.getAutoRejoin();
-                        
-                        context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.autorejoin.status.header")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.enabled", "value", config.autoRejoinEnabled ? Messages.get("common.yes") : Messages.get("common.no"))));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.debug", "value", config.debugAutoRejoin ? Messages.get("status.on") : Messages.get("status.off"))));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.in_progress", "value", autoRejoin.isRejoinInProgress() ? Messages.get("common.yes") : Messages.get("common.no"))));
-                        
-                        if (autoRejoin.isRejoinInProgress()) {
-                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.state", "value", Messages.getColorAccent() + autoRejoin.getCurrentState().name())));
-                        }
-                        
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.was_in_housing", "value", autoRejoin.wasPlayerInHousing() ? Messages.get("common.yes") : Messages.get("common.no"))));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.indicators", "value", Messages.getColorAccent() + String.valueOf(autoRejoin.getDisconnectIndicatorCount()))));
-                        
-                        long lastRefresh = autoRejoin.getLastDisconnectMessagesFetch();
-                        String refreshStr = lastRefresh == 0 ? "§cNever" : Messages.getColorAccent() + getTimeAgo(lastRefresh);
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.last_refresh", "value", refreshStr)));
-                        return 1;
-                    })
-                )
-                .then(literal("cancel")
-                    .executes(context -> {
-                        var autoRejoin = WBUtilsClient.getAutoRejoin();
-                        if (autoRejoin.isRejoinInProgress()) {
-                            autoRejoin.cancelRejoin("Cancelled by user");
-                            context.getSource().sendFeedback(Text.literal(Messages.get("command.autorejoin.cancel")));
-                        } else {
-                            context.getSource().sendFeedback(Text.literal(Messages.get("command.autorejoin.not_active")));
-                        }
-                        return 1;
-                    })
-                )
-                .then(literal("refresh")
-                    .executes(context -> {
-                        context.getSource().sendFeedback(Text.literal(Messages.get("command.autorejoin.refresh")));
-                        WBUtilsClient.getAutoRejoin().forceRefreshDisconnectMessages(success -> {
-                            if (success) {
-                                int count = WBUtilsClient.getAutoRejoin().getDisconnectIndicatorCount();
-                                context.getSource().sendFeedback(Text.literal(Messages.format("command.autorejoin.refresh_success", "count", String.valueOf(count))));
+                            
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.was_in_housing", "value", autoRejoin.wasPlayerInHousing() ? Messages.get("common.yes") : Messages.get("common.no"))));
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.indicators", "value", Messages.getColorAccent() + String.valueOf(autoRejoin.getDisconnectIndicatorCount()))));
+                            
+                            long lastRefresh = autoRejoin.getLastDisconnectMessagesFetch();
+                            String refreshStr = lastRefresh == 0 ? "§cNever" : Messages.getColorAccent() + getTimeAgo(lastRefresh);
+                            context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.autorejoin.status.last_refresh", "value", refreshStr)));
+                            return 1;
+                        })
+                    )
+                    .then(literal("cancel")
+                        .executes(context -> {
+                            var autoRejoin = WBUtilsClient.getAutoRejoin();
+                            if (autoRejoin.isRejoinInProgress()) {
+                                autoRejoin.cancelRejoin("Cancelled by user");
+                                context.getSource().sendFeedback(Text.literal(Messages.get("command.autorejoin.cancel")));
                             } else {
-                                context.getSource().sendFeedback(Text.literal(Messages.get("command.autorejoin.refresh_failed")));
+                                context.getSource().sendFeedback(Text.literal(Messages.get("command.autorejoin.not_active")));
                             }
-                        });
-                        return 1;
-                    })
-                )
-                .executes(context -> {
-                    context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.autorejoin.help.header")));
-                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils autorejoin toggle " + Messages.getColorAccent() + "- " + Messages.get("command.autorejoin.help.toggle")));
-                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils autorejoin status " + Messages.getColorAccent() + "- " + Messages.get("command.autorejoin.help.status")));
-                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils autorejoin cancel " + Messages.getColorAccent() + "- " + Messages.get("command.autorejoin.help.cancel")));
-                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils autorejoin refresh " + Messages.getColorAccent() + "- " + Messages.get("command.autorejoin.help.refresh")));
-                    return 1;
-                })
-            )
-            .then(literal("unwrap")
-                .then(literal("toggle")
+                            return 1;
+                        })
+                    )
+                    .then(literal("refresh")
+                        .executes(context -> {
+                            context.getSource().sendFeedback(Text.literal(Messages.get("command.autorejoin.refresh")));
+                            WBUtilsClient.getAutoRejoin().forceRefreshDisconnectMessages(success -> {
+                                if (success) {
+                                    int count = WBUtilsClient.getAutoRejoin().getDisconnectIndicatorCount();
+                                    context.getSource().sendFeedback(Text.literal(Messages.format("command.autorejoin.refresh_success", "count", String.valueOf(count))));
+                                } else {
+                                    context.getSource().sendFeedback(Text.literal(Messages.get("command.autorejoin.refresh_failed")));
+                                }
+                            });
+                            return 1;
+                        })
+                    )
                     .executes(context -> {
-                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                        config.unwrapEnabled = !config.unwrapEnabled;
-                        WBUtilsClient.getConfigManager().save();
-                        String state = config.unwrapEnabled ? Messages.get("status.on") : Messages.get("status.off");
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.unwrap.toggle", "state", state)));
+                        context.getSource().sendFeedback(Text.literal(Messages.get("command.autorejoin.help.header")));
+                        context.getSource().sendFeedback(Text.literal(Messages.get("command.autorejoin.help.toggle")));
+                        context.getSource().sendFeedback(Text.literal(Messages.get("command.autorejoin.help.status")));
+                        context.getSource().sendFeedback(Text.literal(Messages.get("command.autorejoin.help.cancel")));
+                        context.getSource().sendFeedback(Text.literal(Messages.get("command.autorejoin.help.refresh")));
                         return 1;
                     })
                 )
-                .then(literal("status")
-                    .executes(context -> {
-                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                        var unwrap = WBUtilsClient.getUnwrap();
-                        
-                        context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.unwrap.status.header")));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.unwrap.status.enabled", "value", config.unwrapEnabled ? Messages.get("common.yes") : Messages.get("common.no"))));
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.unwrap.status.debug", "value", config.debugUnwrap ? Messages.get("status.on") : Messages.get("status.off"))));
-                        
-                        String cmds = String.join(", ", unwrap.getUnwrapCommands());
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + Messages.format("command.unwrap.status.commands", "value", Messages.getColorAccent() + cmds)));
-                        return 1;
-                    })
-                )
-                .executes(context -> {
-                    context.getSource().sendFeedback(Text.literal(Messages.withMainBold("command.unwrap.help.header")));
-                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils unwrap toggle " + Messages.getColorAccent() + "- " + Messages.get("command.unwrap.help.toggle")));
-                    context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils unwrap status " + Messages.getColorAccent() + "- " + Messages.get("command.unwrap.help.status")));
-                    return 1;
-                })
             )
-
             .then(literal("system")
                 .then(literal("status")
                     .executes(context -> {
                         context.getSource().sendFeedback(Text.literal(Messages.getColorMain() + "§l⸻ System Status ⸻"));
                         
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "Mod Version: " + Messages.getColorAccent() + "0.91"));
+                        context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "Mod Version: " + Messages.getColorAccent() + WBUtilsClient.getVersion()));
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "API Server: " + Messages.getColorAccent() + WBUtilsClient.getConfigManager().getConfig().authServerUrl));
                         
                         AuthService.checkLinkStatusSafe(result -> {
@@ -728,9 +712,22 @@ public class WBUtilsCommand {
                         .executes(context -> {
                             String url = StringArgumentType.getString(context, "url");
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                            config.authServerUrl = url;
+                            
+                            // Normalize the URL - add https:// if no scheme provided
+                            String normalizedUrl = url.trim();
+                            if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
+                                normalizedUrl = "https://" + normalizedUrl;
+                                context.getSource().sendFeedback(Text.literal("§7" + Messages.get("command.system.server_scheme_added")));
+                            }
+                            
+                            // Remove trailing slash for consistency
+                            if (normalizedUrl.endsWith("/")) {
+                                normalizedUrl = normalizedUrl.substring(0, normalizedUrl.length() - 1);
+                            }
+                            
+                            config.authServerUrl = normalizedUrl;
                             WBUtilsClient.getConfigManager().save();
-                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.server_set", "url", url)));
+                            context.getSource().sendFeedback(Text.literal(Messages.format("command.system.server_set", "url", normalizedUrl)));
                             return 1;
                         })
                     )
@@ -855,13 +852,13 @@ public class WBUtilsCommand {
                             return 1;
                         })
                     )
-                    .then(literal("unwrap")
+                    .then(literal("trap")
                         .executes(context -> {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                            config.debugUnwrap = !config.debugUnwrap;
+                            config.debugTrapAvoider = !config.debugTrapAvoider;
                             WBUtilsClient.getConfigManager().save();
-                            String state = config.debugUnwrap ? Messages.get("status.on") : Messages.get("status.off");
-                            context.getSource().sendFeedback(Text.literal(Messages.format("command.debug.unwrap", "state", state)));
+                            String state = config.debugTrapAvoider ? "§aON" : "§cOFF";
+                            context.getSource().sendFeedback(Text.literal("§7§9[WBUtils] §7TrapAvoider debug: " + state));
                             return 1;
                         })
                     )
@@ -914,7 +911,7 @@ public class WBUtilsCommand {
                     .then(literal("all")
                         .executes(context -> {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                            boolean newState = !(config.debugBounty && config.debugDamage && config.debugKothState && config.debugKtrack && config.debugHttp && config.debugDoorSpirit && config.debugRPS && config.debugAutoRPS && config.debugAutoRejoin && config.debugUnwrap);
+                            boolean newState = !(config.debugBounty && config.debugDamage && config.debugKothState && config.debugKtrack && config.debugHttp && config.debugDoorSpirit && config.debugRPS && config.debugAutoRPS && config.debugAutoRejoin && config.debugTrapAvoider);
                             config.debugBounty = newState;
                             config.debugDamage = newState;
                             config.debugKothState = newState;
@@ -924,7 +921,7 @@ public class WBUtilsCommand {
                             config.debugRPS = newState;
                             config.debugAutoRPS = newState;
                             config.debugAutoRejoin = newState;
-                            config.debugUnwrap = newState;
+                            config.debugTrapAvoider = newState;
                             config.debugModUsers = newState;
                             config.debugBootlist = newState;
                             config.debugStatSpy = newState;
@@ -958,7 +955,7 @@ public class WBUtilsCommand {
                         context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.help.rps")));
                         context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.help.autorps")));
                         context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.help.autorejoin")));
-                        context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.help.unwrap")));
+                        context.getSource().sendFeedback(Text.literal("§7/wbutils system debug trap §b- TrapAvoider"));
                         context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.help.housing")));
                         context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.help.modusers")));
                         context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.help.all")));
@@ -1105,6 +1102,98 @@ public class WBUtilsCommand {
                     context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils statspy toggle " + Messages.getColorAccent() + "- " + Messages.get("command.statspy.help.toggle")));
                     context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils statspy status " + Messages.getColorAccent() + "- " + Messages.get("command.statspy.help.status")));
                     context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "/wbutils statspy clear " + Messages.getColorAccent() + "- " + Messages.get("command.statspy.help.clear")));
+                    return 1;
+                })
+            )
+            .then(literal("trap")
+                .then(literal("toggle")
+                    .executes(context -> {
+                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                        config.trapAvoiderEnabled = !config.trapAvoiderEnabled;
+                        WBUtilsClient.getConfigManager().save();
+                        String state = config.trapAvoiderEnabled ? "§aON" : "§cOFF";
+                        context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7TrapAvoider: " + state));
+                        return 1;
+                    })
+                )
+                .then(literal("whitelist")
+                    .then(literal("toggle")
+                        .executes(context -> {
+                            ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                            config.trapAvoiderWhitelistEnabled = !config.trapAvoiderWhitelistEnabled;
+                            WBUtilsClient.getConfigManager().save();
+                            String state = config.trapAvoiderWhitelistEnabled ? "§aENABLED" : "§cDISABLED";
+                            context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7TrapAvoider whitelist: " + state));
+                            return 1;
+                        })
+                    )
+                    .then(literal("add")
+                        .then(argument("player", StringArgumentType.string())
+                            .suggests(TRAP_WHITELIST_PLAYER_SUGGESTIONS)
+                            .executes(context -> {
+                                String player = StringArgumentType.getString(context, "player");
+                                ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                                if (!config.trapAvoiderWhitelist.contains(player.toLowerCase())) {
+                                    config.trapAvoiderWhitelist.add(player.toLowerCase());
+                                    WBUtilsClient.getConfigManager().save();
+                                    context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7Added §b" + player + " §7to TrapAvoider whitelist."));
+                                } else {
+                                    context.getSource().sendFeedback(Text.literal("§9[WBUtils] §cPlayer is already whitelisted."));
+                                }
+                                return 1;
+                            })
+                        )
+                    )
+                    .then(literal("remove")
+                        .then(argument("player", StringArgumentType.string())
+                            .suggests(TRAP_WHITELIST_PLAYER_SUGGESTIONS)
+                            .executes(context -> {
+                                String player = StringArgumentType.getString(context, "player");
+                                ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                                if (config.trapAvoiderWhitelist.remove(player.toLowerCase())) {
+                                    WBUtilsClient.getConfigManager().save();
+                                    context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7Removed §b" + player + " §7from TrapAvoider whitelist."));
+                                } else {
+                                    context.getSource().sendFeedback(Text.literal("§9[WBUtils] §cPlayer is not whitelisted."));
+                                }
+                                return 1;
+                            })
+                        )
+                    )
+                    .then(literal("list")
+                        .executes(context -> {
+                            ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                            if (config.trapAvoiderWhitelist.isEmpty()) {
+                                context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7TrapAvoider whitelist is empty."));
+                            } else {
+                                context.getSource().sendFeedback(Text.literal("§9§l⸻ TrapAvoider Whitelist ⸻"));
+                                for (String p : config.trapAvoiderWhitelist) {
+                                    context.getSource().sendFeedback(Text.literal("§b- §7" + p));
+                                }
+                            }
+                            return 1;
+                        })
+                    )
+                )
+                .then(literal("status")
+                    .executes(context -> {
+                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                        context.getSource().sendFeedback(Text.literal("§9[WBUtils] §9§l⸻ TrapAvoider Status ⸻"));
+                        context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7Enabled: " + (config.trapAvoiderEnabled ? "§aYes" : "§cNo")));
+                        context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7Whitelist Enabled: " + (config.trapAvoiderWhitelistEnabled ? "§aYes" : "§cNo")));
+                        context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7Debug Logs: " + (config.debugTrapAvoider ? "§aYes" : "§cNo")));
+                        return 1;
+                    })
+                )
+                .executes(context -> {
+                    context.getSource().sendFeedback(Text.literal("§9§l⸻ TrapAvoider Commands ⸻"));
+                    context.getSource().sendFeedback(Text.literal("§7/wbutils trap toggle §b- Enable/disable TrapAvoider"));
+                    context.getSource().sendFeedback(Text.literal("§7/wbutils trap status §b- View TrapAvoider status"));
+                    context.getSource().sendFeedback(Text.literal("§7/wbutils trap whitelist toggle §b- Toggle whitelist"));
+                    context.getSource().sendFeedback(Text.literal("§7/wbutils trap whitelist add <player> §b- Add player to whitelist"));
+                    context.getSource().sendFeedback(Text.literal("§7/wbutils trap whitelist add elite §b- Ignore all Elite ranks"));
+                    context.getSource().sendFeedback(Text.literal("§7/wbutils trap whitelist remove <player> §b- Remove player from whitelist"));
+                    context.getSource().sendFeedback(Text.literal("§7/wbutils trap whitelist list §b- View whitelist"));
                     return 1;
                 })
             )

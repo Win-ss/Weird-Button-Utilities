@@ -8,6 +8,8 @@ import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.world.World;
 
 import java.util.HashSet;
 import java.util.Random;
@@ -45,6 +47,9 @@ public class AutoRejoin {
     private static final int STATE_TIMEOUT_MAX = 60 * 20;
 
     private boolean waitingForWorldLoad = false;
+    private RegistryKey<World> lastDimension = null;
+    private long lastHousingSeenAtMs = 0L;
+    private static final long HOUSING_CONTEXT_TTL_MS = 30_000L;
     
     public enum RejoinState {
         IDLE,
@@ -89,7 +94,31 @@ public class AutoRejoin {
         }
         
         if (client.player != null && WBUtilsClient.getHousingDetector() != null && !rejoinInProgress) {
-            wasInHousing = WBUtilsClient.getHousingDetector().isInDptb2Housing();
+            if (WBUtilsClient.getHousingDetector().isInDptb2Housing()) {
+                wasInHousing = true;
+                lastHousingSeenAtMs = System.currentTimeMillis();
+            } else if (wasInHousing && !wasRecentlyInHousing()) {
+                wasInHousing = false;
+                lastHousingSeenAtMs = 0L;
+            }
+        }
+        
+        // --- Dimension-based limbo detection (primary trigger) ---
+        if (client.world != null && client.player != null && !rejoinInProgress) {
+            RegistryKey<World> currentDimension = client.world.getRegistryKey();
+            if (lastDimension != null && !currentDimension.equals(lastDimension)) {
+                boolean isNowInEnd = currentDimension.equals(World.END);
+                
+                if (isNowInEnd && wasRecentlyInHousing()) {
+                    if (config.debugAutoRejoin) {
+                        WBUtilsClient.LOGGER.info("[AutoRejoin] Dimension changed to THE_END while recentlyInHousing=true -> Limbo detected!");
+                    }
+                    startLimboRejoin("dimension");
+                }
+            }
+            lastDimension = currentDimension;
+        } else if (client.world == null) {
+            lastDimension = null;
         }
         
         if (rejoinInProgress) {
@@ -101,6 +130,7 @@ public class AutoRejoin {
     public void captureHousingState(boolean inHousing) {
         if (inHousing && !rejoinInProgress) {
             wasInHousing = true;
+            lastHousingSeenAtMs = System.currentTimeMillis();
             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
             if (config.debugAutoRejoin) {
                 WBUtilsClient.LOGGER.info("[AutoRejoin] Housing state captured: wasInHousing = true");
@@ -112,6 +142,7 @@ public class AutoRejoin {
     public void onIntentionalDisconnect() {
         intentionalDisconnect = true;
         wasInHousing = false;
+        lastHousingSeenAtMs = 0L;
         if (rejoinInProgress) {
             cancelRejoin("Intentional disconnect");
         }
@@ -130,11 +161,12 @@ public class AutoRejoin {
         if (intentionalDisconnect) {
             intentionalDisconnect = false;
             wasInHousing = false;
+            lastHousingSeenAtMs = 0L;
             WBUtilsClient.LOGGER.info("[AutoRejoin] Skipping - intentional disconnect");
             return false;
         }
         
-        if (!wasInHousing) {
+        if (!wasRecentlyInHousing()) {
             WBUtilsClient.LOGGER.info("[AutoRejoin] Skipping - was not in housing");
             resetState();
             return false;
@@ -148,7 +180,7 @@ public class AutoRejoin {
         if (config.debugAutoRejoin) {
             WBUtilsClient.LOGGER.info("[AutoRejoin] Disconnect detected:");
             WBUtilsClient.LOGGER.info("[AutoRejoin]   Reason: {}", strippedReason);
-            WBUtilsClient.LOGGER.info("[AutoRejoin]   Was in housing: {}", wasInHousing);
+            WBUtilsClient.LOGGER.info("[AutoRejoin]   Was in housing (recent): {}", wasRecentlyInHousing());
             WBUtilsClient.LOGGER.info("[AutoRejoin]   Is network disconnect: {}", isNetworkDisconnect);
         }
         
@@ -278,7 +310,7 @@ public class AutoRejoin {
             return false;
         }
         
-        if (!wasInHousing) {
+        if (!wasRecentlyInHousing()) {
             if (config.debugAutoRejoin) {
                 WBUtilsClient.LOGGER.info("[AutoRejoin] Chat indicator detected but was not in housing: {}", stripped);
             }
@@ -288,10 +320,10 @@ public class AutoRejoin {
         if (config.debugAutoRejoin) {
             WBUtilsClient.LOGGER.info("[AutoRejoin] Network disconnect indicator detected via chat!");
             WBUtilsClient.LOGGER.info("[AutoRejoin]   Message: {}", stripped);
-            WBUtilsClient.LOGGER.info("[AutoRejoin]   Was in housing: {}", wasInHousing);
+            WBUtilsClient.LOGGER.info("[AutoRejoin]   Was in housing (recent): {}", wasRecentlyInHousing());
         }
         
-        startLimboRejoin();
+        startLimboRejoin("chat");
         return true;
     }
     
@@ -315,7 +347,7 @@ public class AutoRejoin {
     }
     
 
-    private void startLimboRejoin() {
+    private void startLimboRejoin(String source) {
         ModConfig config = WBUtilsClient.getConfigManager().getConfig();
         
         rejoinInProgress = true;
@@ -325,11 +357,13 @@ public class AutoRejoin {
         stateTimeoutTicks = 0;
         
         int delaySeconds = stateDelayTicks / 20;
-        WBUtilsClient.LOGGER.info("[AutoRejoin] Starting LIMBO rejoin sequence in {} seconds", delaySeconds);
+        WBUtilsClient.LOGGER.info("[AutoRejoin] Starting LIMBO rejoin sequence in {} seconds (source: {})", delaySeconds, source);
+        
+        String messageKey = "dimension".equals(source) ? "autorejoin.limbo.dimension" : "autorejoin.limbo.starting";
         
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player != null) {
-            client.player.sendMessage(Text.literal(Messages.format("autorejoin.limbo.starting", "seconds", String.valueOf(delaySeconds))), false);
+            client.player.sendMessage(Text.literal(Messages.format(messageKey, "seconds", String.valueOf(delaySeconds))), false);
         }
     }
     
@@ -362,6 +396,15 @@ public class AutoRejoin {
         wasInHousing = false;
         intentionalDisconnect = false;
         waitingForWorldLoad = false;
+        lastDimension = null;
+        lastHousingSeenAtMs = 0L;
+    }
+
+    private boolean wasRecentlyInHousing() {
+        if (!wasInHousing || lastHousingSeenAtMs <= 0L) {
+            return false;
+        }
+        return (System.currentTimeMillis() - lastHousingSeenAtMs) <= HOUSING_CONTEXT_TTL_MS;
     }
     
     private ModConfig config() {
@@ -616,7 +659,7 @@ public class AutoRejoin {
     }
 
     public boolean wasPlayerInHousing() {
-        return wasInHousing;
+        return wasRecentlyInHousing();
     }
 
     public long getLastDisconnectMessagesFetch() {

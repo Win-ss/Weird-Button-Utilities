@@ -10,7 +10,13 @@ import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
+import com.winss.wbutils.network.NetworkManager;
+import com.winss.wbutils.config.ModConfig;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
@@ -28,12 +34,12 @@ public class HousingDetector {
     
 
     private static final Pattern SENDING_TO_PATTERN = Pattern.compile(
-        "Sending to DON'?T PRESS THE BUTTON", Pattern.CASE_INSENSITIVE
+        "Sending to (?:DON'?T\\s*PRESS\\s*THE\\s*BUTTON|DPTB)", Pattern.CASE_INSENSITIVE
     );
     
 
     private static final Pattern TAB_HOUSING_PATTERN = Pattern.compile(
-        "You\\s+are\\s+in.*?DON'?T\\s*PRESS\\s*THE\\s*BUTTON", Pattern.CASE_INSENSITIVE
+        "You\\s+are\\s+in.*?(?:DON'?T\\s*PRESS\\s*THE\\s*BUTTON|DPTB|BUTT|PRES)", Pattern.CASE_INSENSITIVE
     );
     
 
@@ -120,8 +126,14 @@ public class HousingDetector {
         if (lastDimension != null && !currentDimension.equals(lastDimension)) {
             WBUtilsClient.LOGGER.debug("[HousingDetector] Dimension changed from {} to {}", 
                 lastDimension.getValue(), currentDimension.getValue());
-            if (inDptb2Housing && !detectedViaChat) {
-
+            
+            boolean isNowInEnd = currentDimension.equals(World.END);
+            
+            if (inDptb2Housing && isNowInEnd) {
+                // THE_END = Limbo on Hypixel. Always reset, even if detected via chat.
+                WBUtilsClient.LOGGER.info("[HousingDetector] Dimension changed to THE_END (Limbo) - forcing housing reset");
+                resetHousingStatus("Sent to Limbo (dimension: THE_END)");
+            } else if (inDptb2Housing && !detectedViaChat) {
                 resetHousingStatus("Dimension changed");
                 triggerPendingDetection();
             }
@@ -275,6 +287,7 @@ public class HousingDetector {
         
         client.player.sendMessage(Text.literal(Messages.get("housing.detected.success")), false);
         
+        fetchAndDisplayMotd();
 
         ModUserManager modUserManager = WBUtilsClient.getModUserManager();
         if (modUserManager != null) {
@@ -319,6 +332,44 @@ public class HousingDetector {
                     }
                 });
             }
+        });
+    }
+
+    private void fetchAndDisplayMotd() {
+        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+        String urlStr = config.authServerUrl + "/motd";
+        
+        NetworkManager.get(urlStr, false, "").thenAccept(response -> {
+            if (response.statusCode() == 200) {
+                try {
+                    String json = response.body();
+                    JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
+                    if (obj.has("message")) {
+                        String message = obj.get("message").getAsString();
+                        if (!"nothing".equalsIgnoreCase(message) && !message.trim().isEmpty()) {
+                            // Schedule display 3 seconds later
+                            CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> {
+                                MinecraftClient client = MinecraftClient.getInstance();
+                                // Double check they are still in housing 3 seconds later
+                                if (client.player != null && inDptb2Housing) {
+                                    client.execute(() -> {
+                                        // Convert standard & code to section sign for Minecraft colors
+                                        String formattedMessage = message.replace('&', '§');
+                                        client.player.sendMessage(Text.literal(formattedMessage), false);
+                                        // Single ping
+                                        client.player.playSound(net.minecraft.sound.SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+                                    });
+                                }
+                            });
+                        }
+                    }
+                } catch (Exception e) {
+                    WBUtilsClient.LOGGER.error("[HousingDetector] Failed to parse MOTD", e);
+                }
+            }
+        }).exceptionally(e -> {
+            WBUtilsClient.LOGGER.error("[HousingDetector] Failed to fetch MOTD", e);
+            return null;
         });
     }
 
@@ -405,6 +456,17 @@ public class HousingDetector {
 
     public boolean isInDptb2Housing() {
         return inDptb2Housing;
+    }
+
+    /**
+     * Check if the player is currently in Limbo.
+     * On Hypixel, Limbo uses THE_END dimension.
+     */
+    public boolean isInLimbo() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world == null) return false;
+        if (!isOnHypixel()) return false;
+        return client.world.getRegistryKey().equals(World.END);
     }
 
     public void showScoreboardDebug() {

@@ -54,10 +54,6 @@ public class ModConfig {
     public boolean autoRejoinEnabled = false;
     public boolean debugAutoRejoin = false;
     
-    // Unwrap feature
-    public boolean unwrapEnabled = true;
-    public boolean debugUnwrap = false;
-    
     // Bootlist feature
     public boolean bootlistEnabled = false;
     public boolean debugBootlist = false;
@@ -71,6 +67,12 @@ public class ModConfig {
     public boolean mayhemDedicationMode = false;
     public int mayhemInactivitySeconds = 60;
     public boolean debugMayhemBlast = false;
+    
+    // TrapAvoider feature
+    public boolean trapAvoiderEnabled = false;
+    public boolean trapAvoiderWhitelistEnabled = false;
+    public List<String> trapAvoiderWhitelist = new ArrayList<>();
+    public boolean debugTrapAvoider = false;
     
     // Debug options
     public boolean debugBounty = false;

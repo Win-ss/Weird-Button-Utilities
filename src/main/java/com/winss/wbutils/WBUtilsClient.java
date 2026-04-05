@@ -17,13 +17,17 @@ import com.winss.wbutils.features.QuestHelper;
 import com.winss.wbutils.features.RPSTracker;
 import com.winss.wbutils.features.AutoRPS;
 import com.winss.wbutils.features.ShopHelper;
-import com.winss.wbutils.features.Unwrap;
 import com.winss.wbutils.features.BootlistTracker;
 import com.winss.wbutils.features.StatSpy;
 import com.winss.wbutils.features.MayhemBlast;
+import com.winss.wbutils.features.TrapAvoider;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
+import org.lwjgl.glfw.GLFW;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,12 +51,12 @@ public class WBUtilsClient implements ClientModInitializer {
     private static RPSTracker rpsTracker;
     private static AutoRPS autoRPS;
     private static AutoRejoin autoRejoin;
-    private static Unwrap unwrap;
     private static ModUserManager modUserManager;
     private static BootlistTracker bootlistTracker;
     private static StatSpy statSpy;
     private static MayhemBlast mayhemBlast;
-
+    private static TrapAvoider trapAvoider;
+    
     @Override
     public void onInitializeClient() {
         LOGGER.info("WBUtils is initializing...");
@@ -67,11 +71,11 @@ public class WBUtilsClient implements ClientModInitializer {
         rpsTracker = new RPSTracker();
         autoRPS = new AutoRPS();
         autoRejoin = new AutoRejoin();
-        unwrap = new Unwrap();
         modUserManager = new ModUserManager();
         bootlistTracker = new BootlistTracker();
         statSpy = new StatSpy();
         mayhemBlast = new MayhemBlast();
+        trapAvoider = new TrapAvoider();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             housingDetector.onClientTick();
@@ -86,11 +90,11 @@ public class WBUtilsClient implements ClientModInitializer {
                 killTracker.onClientTick();
                 doorSpirit.onClientTick();
                 autoRPS.onClientTick();
-                unwrap.onClientTick();
                 modUserManager.onClientTick();
                 bootlistTracker.onClientTick();
                 statSpy.onClientTick();
                 mayhemBlast.onClientTick();
+                trapAvoider.onClientTick();
             }
             QuestHelper.onClientTick();
             ShopHelper.onClientTick();
@@ -139,10 +143,6 @@ public class WBUtilsClient implements ClientModInitializer {
         return autoRejoin;
     }
     
-    public static Unwrap getUnwrap() {
-        return unwrap;
-    }
-    
     public static ModUserManager getModUserManager() {
         return modUserManager;
     }
@@ -157,5 +157,9 @@ public class WBUtilsClient implements ClientModInitializer {
     
     public static MayhemBlast getMayhemBlast() {
         return mayhemBlast;
+    }
+    
+    public static TrapAvoider getTrapAvoider() {
+        return trapAvoider;
     }
 }
