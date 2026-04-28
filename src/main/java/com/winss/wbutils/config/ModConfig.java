@@ -48,6 +48,7 @@ public class ModConfig {
     public boolean autoRPSEnabled = false;
     public com.winss.wbutils.features.AutoRPS.Mode autoRPSMode = com.winss.wbutils.features.AutoRPS.Mode.RANDOM;
     public boolean autoRPSShowFeedback = true;
+    public boolean autoRPSNotifyOnDamage = true;
     public boolean debugAutoRPS = false;
     
     // AutoRejoin feature
@@ -62,6 +63,11 @@ public class ModConfig {
     public boolean statSpyEnabled = true;
     public boolean debugStatSpy = false;
     
+    // BorgRadar feature
+    public boolean borgRadarEnabled = true;
+    public boolean debugBorgRadar = false;
+
+    
     // MayhemBlast feature
     public boolean mayhemBlastEnabled = false;
     public boolean mayhemDedicationMode = false;
@@ -74,6 +80,11 @@ public class ModConfig {
     public List<String> trapAvoiderWhitelist = new ArrayList<>();
     public boolean debugTrapAvoider = false;
     
+    // AutoBuy feature
+    public boolean autoBuyEnabled = false;
+    public boolean autoBuySafetyEnabled = true;
+    public boolean debugAutoBuy = false;
+
     // Debug options
     public boolean debugBounty = false;
     public boolean debugDamage = false;

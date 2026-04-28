@@ -16,6 +16,7 @@ import com.winss.wbutils.features.AutoRejoin;
 import com.winss.wbutils.features.KillTracker;
 import com.winss.wbutils.features.ModUserManager;
 import com.winss.wbutils.features.RPSTracker;
+import com.winss.wbutils.features.AutoBuy;
 import com.winss.wbutils.features.AutoRPS;
 import com.winss.wbutils.features.StatSpy;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -38,6 +39,16 @@ public class WBUtilsCommand {
         String remaining = builder.getRemaining().toLowerCase();
         if ("elite".startsWith(remaining)) {
             builder.suggest("elite");
+        }
+        return builder.buildFuture();
+    };
+
+    private static final SuggestionProvider<FabricClientCommandSource> AUTO_BUY_ITEM_SUGGESTIONS = (context, builder) -> {
+        String remaining = builder.getRemaining().toLowerCase();
+        for (AutoBuy.BuyableItem item : AutoBuy.BuyableItem.values()) {
+            if (item.id.toLowerCase().startsWith(remaining)) {
+                builder.suggest(item.id);
+            }
         }
         return builder.buildFuture();
     };
@@ -143,6 +154,24 @@ public class WBUtilsCommand {
                 })
             )
 
+            .then(literal("route")
+                .then(literal("stargazer")
+                    .executes(context -> {
+                        com.winss.wbutils.features.RouteHelper routeHelper = WBUtilsClient.getRouteHelper();
+                        if (routeHelper != null) {
+                            boolean newState = !routeHelper.isStargazerEnabled();
+                            if (newState && !WBUtilsClient.getHousingDetector().isInDptb2Housing()) {
+                                context.getSource().sendFeedback(net.minecraft.text.Text.literal("§9[WBUtils] §cThis feature can only be enabled in the housing."));
+                                return 1;
+                            }
+                            routeHelper.setStargazer(newState);
+                            String state = newState ? "§aON" : "§cOFF";
+                            context.getSource().sendFeedback(net.minecraft.text.Text.literal("§9[WBUtils] §7Stargazer: " + state));
+                        }
+                        return 1;
+                    })
+                )
+            )
             .then(literal("koth")
                 .then(literal("toggle")
                     .executes(context -> {
@@ -678,11 +707,117 @@ public class WBUtilsCommand {
                         return 1;
                     })
                 )
+                .then(literal("buy")
+                    .then(literal("toggle")
+                        .executes(context -> {
+                            ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                            config.autoBuyEnabled = !config.autoBuyEnabled;
+                            WBUtilsClient.getConfigManager().save();
+                            String state = config.autoBuyEnabled ? "§aON" : "§cOFF";
+                            context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7Auto-Buy is now " + state));
+                            return 1;
+                        })
+                    )
+                    .then(literal("item").then(argument("item", StringArgumentType.string())
+                        .suggests(AUTO_BUY_ITEM_SUGGESTIONS)
+                        .then(argument("quantity", IntegerArgumentType.integer(1, 64))
+                            .executes(context -> {
+                                String itemId = StringArgumentType.getString(context, "item");
+                                int quantity = IntegerArgumentType.getInteger(context, "quantity");
+                                com.winss.wbutils.command.AutoBuyCommand.executeAutoBuy(context.getSource(), itemId, quantity);
+                                return 1;
+                            })
+                        )
+                    ))
+                    .then(literal("cancel")
+                        .executes(context -> {
+                            AutoBuy autoBuy = WBUtilsClient.getAutoBuy();
+                            if (autoBuy != null && autoBuy.isActive()) {
+                                autoBuy.cancel("Cancelled by user");
+                            } else {
+                                context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7No auto-buy operation is running."));
+                            }
+                            return 1;
+                        })
+                    )
+                    .then(literal("safety")
+                        .then(literal("on")
+                            .executes(context -> {
+                                ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                                config.autoBuySafetyEnabled = true;
+                                WBUtilsClient.getConfigManager().save();
+                                context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7Auto-buy safety: §aON §7(clicks will cancel the operation)"));
+                                return 1;
+                            })
+                        )
+                        .then(literal("off")
+                            .executes(context -> {
+                                ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                                config.autoBuySafetyEnabled = false;
+                                WBUtilsClient.getConfigManager().save();
+                                context.getSource().sendFeedback(Text.literal("§9[WBUtils] §cAuto-buy safety: §cOFF §7(clicks will NOT cancel the operation)"));
+                                return 1;
+                            })
+                        )
+                    )
+                    .then(literal("status")
+                        .executes(context -> {
+                            ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                            AutoBuy autoBuy = WBUtilsClient.getAutoBuy();
+                            context.getSource().sendFeedback(Text.literal("§9[WBUtils] §9&l⸻ Auto-Buy Status ⸻"));
+                            context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7Enabled: " + (config.autoBuyEnabled ? "§aON" : "§cOFF")));
+                            context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7Safety: " + (config.autoBuySafetyEnabled ? "§aON" : "§cOFF")));
+                            context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7Debug: " + (config.debugAutoBuy ? "§aON" : "§cOFF")));
+                            if (autoBuy != null) {
+                                context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7Operation: " + autoBuy.getStatusInfo()));
+                            }
+                            return 1;
+                        })
+                    )
+                    .executes(context -> {
+                        context.getSource().sendFeedback(Text.literal("§9[WBUtils] §9&l⸻ Auto-Buy Commands ⸻"));
+                        context.getSource().sendFeedback(Text.literal("§7/wbutils auto buy toggle §b- Enable/disable auto-buy system"));
+                        context.getSource().sendFeedback(Text.literal("§7/wbutils auto buy item <item> <qty> §b- Start auto-buying"));
+                        context.getSource().sendFeedback(Text.literal("§7/abuy <item> <qty> §b- Shortcut alias"));
+                        context.getSource().sendFeedback(Text.literal("§7/wbutils auto buy cancel §b- Cancel current operation"));
+                        context.getSource().sendFeedback(Text.literal("§7/wbutils auto buy safety <on|off> §b- Toggle safety cancel"));
+                        context.getSource().sendFeedback(Text.literal("§7/wbutils auto buy status §b- View current status"));
+                        context.getSource().sendFeedback(Text.literal("§9Items: §7immunity_apple§8, §7remote§8, §7jump_4§8, §7speed_4"));
+                        return 1;
+                    })
+                )
+            )
+            .then(literal("borgradar")
+                .then(literal("toggle")
+                    .executes(context -> {
+                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                        config.borgRadarEnabled = !config.borgRadarEnabled;
+                        WBUtilsClient.getConfigManager().save();
+                        String state = config.borgRadarEnabled ? "§aON" : "§cOFF";
+                        context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7BorgRadar: " + state));
+                        return 1;
+                    })
+                )
+                .then(literal("status")
+                    .executes(context -> {
+                        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                        context.getSource().sendFeedback(Text.literal("§9[WBUtils] §9&l⸻ BorgRadar Status ⸻"));
+                        context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7Enabled: " + (config.borgRadarEnabled ? "§aON" : "§cOFF")));
+                        context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7Debug Logs: " + (config.debugBorgRadar ? "§aON" : "§cOFF")));
+                        return 1;
+                    })
+                )
+                .executes(context -> {
+                    context.getSource().sendFeedback(Text.literal("§9[WBUtils] §9&l⸻ BorgRadar Commands ⸻"));
+                    context.getSource().sendFeedback(Text.literal("§7/wbutils borgradar toggle §b- Enable/disable BorgRadar"));
+                    context.getSource().sendFeedback(Text.literal("§7/wbutils borgradar status §b- View status"));
+                    return 1;
+                })
             )
             .then(literal("system")
                 .then(literal("status")
                     .executes(context -> {
-                        context.getSource().sendFeedback(Text.literal(Messages.getColorMain() + "§l⸻ System Status ⸻"));
+                        context.getSource().sendFeedback(Text.literal("§9[WBUtils] §9§l⸻ System Status ⸻"));
                         
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "Mod Version: " + Messages.getColorAccent() + WBUtilsClient.getVersion()));
                         context.getSource().sendFeedback(Text.literal(Messages.getColorText() + "API Server: " + Messages.getColorAccent() + WBUtilsClient.getConfigManager().getConfig().authServerUrl));
@@ -908,10 +1043,20 @@ public class WBUtilsCommand {
                             return 1;
                         })
                     )
+                    .then(literal("autobuy")
+                        .executes(context -> {
+                            ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+                            config.debugAutoBuy = !config.debugAutoBuy;
+                            WBUtilsClient.getConfigManager().save();
+                            String state = config.debugAutoBuy ? "§aON" : "§cOFF";
+                            context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7AutoBuy debug: " + state));
+                            return 1;
+                        })
+                    )
                     .then(literal("all")
                         .executes(context -> {
                             ModConfig config = WBUtilsClient.getConfigManager().getConfig();
-                            boolean newState = !(config.debugBounty && config.debugDamage && config.debugKothState && config.debugKtrack && config.debugHttp && config.debugDoorSpirit && config.debugRPS && config.debugAutoRPS && config.debugAutoRejoin && config.debugTrapAvoider);
+                            boolean newState = !(config.debugBounty && config.debugDamage && config.debugKothState && config.debugKtrack && config.debugHttp && config.debugDoorSpirit && config.debugRPS && config.debugAutoRPS && config.debugAutoRejoin && config.debugTrapAvoider && config.debugAutoBuy);
                             config.debugBounty = newState;
                             config.debugDamage = newState;
                             config.debugKothState = newState;
@@ -926,6 +1071,7 @@ public class WBUtilsCommand {
                             config.debugBootlist = newState;
                             config.debugStatSpy = newState;
                             config.debugMayhemBlast = newState;
+                            config.debugAutoBuy = newState;
                             config.kothDebugLogs = newState;
                             config.ktrackDebugLogs = newState;
                             WBUtilsClient.getConfigManager().save();
@@ -956,6 +1102,7 @@ public class WBUtilsCommand {
                         context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.help.autorps")));
                         context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.help.autorejoin")));
                         context.getSource().sendFeedback(Text.literal("§7/wbutils system debug trap §b- TrapAvoider"));
+                        context.getSource().sendFeedback(Text.literal("§7/wbutils system debug autobuy §b- AutoBuy"));
                         context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.help.housing")));
                         context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.help.modusers")));
                         context.getSource().sendFeedback(Text.literal(Messages.get("command.system.debug.help.all")));
@@ -1166,7 +1313,7 @@ public class WBUtilsCommand {
                             if (config.trapAvoiderWhitelist.isEmpty()) {
                                 context.getSource().sendFeedback(Text.literal("§9[WBUtils] §7TrapAvoider whitelist is empty."));
                             } else {
-                                context.getSource().sendFeedback(Text.literal("§9§l⸻ TrapAvoider Whitelist ⸻"));
+                                context.getSource().sendFeedback(Text.literal("§9[WBUtils] §9§l⸻ TrapAvoider Whitelist ⸻"));
                                 for (String p : config.trapAvoiderWhitelist) {
                                     context.getSource().sendFeedback(Text.literal("§b- §7" + p));
                                 }
@@ -1186,7 +1333,7 @@ public class WBUtilsCommand {
                     })
                 )
                 .executes(context -> {
-                    context.getSource().sendFeedback(Text.literal("§9§l⸻ TrapAvoider Commands ⸻"));
+                    context.getSource().sendFeedback(Text.literal("§9[WBUtils] §9§l⸻ TrapAvoider Commands ⸻"));
                     context.getSource().sendFeedback(Text.literal("§7/wbutils trap toggle §b- Enable/disable TrapAvoider"));
                     context.getSource().sendFeedback(Text.literal("§7/wbutils trap status §b- View TrapAvoider status"));
                     context.getSource().sendFeedback(Text.literal("§7/wbutils trap whitelist toggle §b- Toggle whitelist"));

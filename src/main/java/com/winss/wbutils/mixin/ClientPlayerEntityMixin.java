@@ -18,6 +18,26 @@ public class ClientPlayerEntityMixin {
     @Unique
     private int wbutils$ticksSinceLog = 0;
     
+    @Unique
+    private float wbutils$stargazerOldPitch = 0f;
+
+    @Inject(method = "sendMovementPackets", at = @At("HEAD"))
+    private void wbutils$beforeSendPackets(CallbackInfo ci) {
+        if (WBUtilsClient.getRouteHelper() != null && WBUtilsClient.getRouteHelper().isStargazerEnabled()) {
+            ClientPlayerEntity player = (ClientPlayerEntity) (Object) this;
+            wbutils$stargazerOldPitch = player.getPitch();
+            player.setPitch(-90.0f);
+        }
+    }
+
+    @Inject(method = "sendMovementPackets", at = @At("TAIL"))
+    private void wbutils$afterSendPackets(CallbackInfo ci) {
+        if (WBUtilsClient.getRouteHelper() != null && WBUtilsClient.getRouteHelper().isStargazerEnabled()) {
+            ClientPlayerEntity player = (ClientPlayerEntity) (Object) this;
+            player.setPitch(wbutils$stargazerOldPitch);
+        }
+    }
+
     @Inject(method = "tick", at = @At("TAIL"))
     private void wbutils$onTick(CallbackInfo ci) {
         ClientPlayerEntity player = (ClientPlayerEntity) (Object) this;
@@ -50,6 +70,10 @@ public class ClientPlayerEntityMixin {
             
             if (WBUtilsClient.getKothProtector() != null) {
                 WBUtilsClient.getKothProtector().onPlayerDamaged(damage, null, "unknown");
+            }
+            
+            if (WBUtilsClient.getAutoRPS() != null) {
+                WBUtilsClient.getAutoRPS().onPlayerDamaged(damage);
             }
             
             if (WBUtilsClient.getKillTracker() != null) {

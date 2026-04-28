@@ -55,6 +55,9 @@ public class AutoRPS {
     private RPSTracker.RPSStats cachedStats = null;
     private boolean fetchingStats = false;
     
+    private long lastDamageAlertTime = 0L;
+    private static final long DAMAGE_ALERT_COOLDOWN_MS = 10_000L;
+    
     public AutoRPS() {
         WBUtilsClient.LOGGER.info("[AutoRPS] Initialized");
     }
@@ -343,5 +346,52 @@ public class AutoRPS {
             case RANDOM -> Mode.ANALYTICAL;
             case ANALYTICAL -> Mode.OFF;
         };
+    }
+    
+    public void onPlayerDamaged(float amount) {
+        ModConfig config = WBUtilsClient.getConfigManager().getConfig();
+        if (!config.autoRPSEnabled || !config.autoRPSNotifyOnDamage) {
+            return;
+        }
+        
+        if (!isRPSScreenActive()) {
+            return;
+        }
+
+        long now = net.minecraft.util.Util.getMeasuringTimeMs();
+        if (now - lastDamageAlertTime < DAMAGE_ALERT_COOLDOWN_MS) {
+            return;
+        }
+        
+        MinecraftClient client = MinecraftClient.getInstance();
+        ClientPlayerEntity player = client.player;
+        if (player == null) {
+            return;
+        }
+
+        lastDamageAlertTime = now;
+        
+        java.util.List<String> nearbyPlayers = new java.util.ArrayList<>();
+        com.winss.wbutils.features.ModUserManager modUserManager = WBUtilsClient.getModUserManager();
+        if (client.world != null) {
+            for (net.minecraft.client.network.AbstractClientPlayerEntity otherPlayer : client.world.getPlayers()) {
+                if (otherPlayer == player) continue;
+                String otherName = otherPlayer.getName().getString();
+                if (modUserManager != null && modUserManager.isModUser(otherName)) {
+                    continue;
+                }
+                if (player.distanceTo(otherPlayer) <= 5.0) {
+                    nearbyPlayers.add(otherName);
+                }
+            }
+        }
+        
+        String attackerInfo = nearbyPlayers.isEmpty() ? "Unknown" : String.join(", ", nearbyPlayers);
+        String title = "RPS Damage Alert";
+        String description = "you are taking damage in rps area, player damaging you: " + attackerInfo;
+        
+        if (config.authServerUrl != null && !config.authServerUrl.isBlank()) {
+            AuthService.sendAlert(title, description, 0xE74C3C, true, result -> {});
+        }
     }
 }

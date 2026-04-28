@@ -1,11 +1,13 @@
 package com.winss.wbutils;
 
+import com.winss.wbutils.command.AutoBuyCommand;
 import com.winss.wbutils.command.CameraResetCommand;
 import com.winss.wbutils.command.QuestCommand;
 import com.winss.wbutils.command.ShopCommand;
 import com.winss.wbutils.command.WBUtilsCommand;
 import com.winss.wbutils.config.ConfigManager;
 import com.winss.wbutils.features.AuthService;
+import com.winss.wbutils.features.AutoBuy;
 import com.winss.wbutils.features.AutoRejoin;
 import com.winss.wbutils.features.CameraReset;
 import com.winss.wbutils.features.DoorSpirit;
@@ -21,6 +23,7 @@ import com.winss.wbutils.features.BootlistTracker;
 import com.winss.wbutils.features.StatSpy;
 import com.winss.wbutils.features.MayhemBlast;
 import com.winss.wbutils.features.TrapAvoider;
+import com.winss.wbutils.features.BorgRadar;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -50,12 +53,16 @@ public class WBUtilsClient implements ClientModInitializer {
     private static DoorSpirit doorSpirit;
     private static RPSTracker rpsTracker;
     private static AutoRPS autoRPS;
+    private static com.winss.wbutils.features.RouteHelper routeHelper;
     private static AutoRejoin autoRejoin;
     private static ModUserManager modUserManager;
     private static BootlistTracker bootlistTracker;
     private static StatSpy statSpy;
     private static MayhemBlast mayhemBlast;
     private static TrapAvoider trapAvoider;
+    private static AutoBuy autoBuy;
+    private static BorgRadar borgRadar;
+    private static KeyBinding copyItemInfoKey;
     
     @Override
     public void onInitializeClient() {
@@ -70,14 +77,28 @@ public class WBUtilsClient implements ClientModInitializer {
         doorSpirit = new DoorSpirit();
         rpsTracker = new RPSTracker();
         autoRPS = new AutoRPS();
+        routeHelper = new com.winss.wbutils.features.RouteHelper();
         autoRejoin = new AutoRejoin();
         modUserManager = new ModUserManager();
         bootlistTracker = new BootlistTracker();
         statSpy = new StatSpy();
         mayhemBlast = new MayhemBlast();
         trapAvoider = new TrapAvoider();
+        autoBuy = new AutoBuy();
+        borgRadar = new BorgRadar();
+
+        // Register keybinds
+        copyItemInfoKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "key.wbutils.copy_item_info",
+            InputUtil.Type.KEYSYM,
+            GLFW.GLFW_KEY_F8,
+            "key.categories.wbutils"
+        ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (routeHelper != null) {
+                routeHelper.tick();
+            }
             housingDetector.onClientTick();
             AuthService.checkConnectivityTick();
             autoRejoin.onClientTick();
@@ -95,9 +116,11 @@ public class WBUtilsClient implements ClientModInitializer {
                 statSpy.onClientTick();
                 mayhemBlast.onClientTick();
                 trapAvoider.onClientTick();
+                borgRadar.onClientTick();
             }
             QuestHelper.onClientTick();
             ShopHelper.onClientTick();
+            autoBuy.onClientTick();
             CameraReset.onClientTick();
         });
         
@@ -106,6 +129,7 @@ public class WBUtilsClient implements ClientModInitializer {
             QuestCommand.register(dispatcher);
             ShopCommand.register(dispatcher);
             CameraResetCommand.register(dispatcher);
+            AutoBuyCommand.register(dispatcher);
         });
         
         LOGGER.info("WBUtils initialized successfully!");
@@ -138,6 +162,10 @@ public class WBUtilsClient implements ClientModInitializer {
     public static AutoRPS getAutoRPS() {
         return autoRPS;
     }
+
+    public static com.winss.wbutils.features.RouteHelper getRouteHelper() {
+        return routeHelper;
+    }
     
     public static AutoRejoin getAutoRejoin() {
         return autoRejoin;
@@ -161,5 +189,17 @@ public class WBUtilsClient implements ClientModInitializer {
     
     public static TrapAvoider getTrapAvoider() {
         return trapAvoider;
+    }
+
+    public static AutoBuy getAutoBuy() {
+        return autoBuy;
+    }
+
+    public static BorgRadar getBorgRadar() {
+        return borgRadar;
+    }
+
+    public static KeyBinding getCopyItemInfoKey() {
+        return copyItemInfoKey;
     }
 }

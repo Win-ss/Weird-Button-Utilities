@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
 
 public class TrapAvoider {
 
-    private static final float[] COLOR_HIGHLIGHT = {1.0f, 0.0f, 0.0f, 0.25f};
+    private static final float[] COLOR_HIGHLIGHT = {1.0f, 0.0f, 0.0f, 0.10f};
     private static final double PROXIMITY_DISTANCE = 30.0;
     private static final Pattern VALID_PLAYER_NAME = Pattern.compile("^[a-zA-Z0-9_]{3,16}$");
     private static final Pattern DEATH_BOUNTY_PATTERN = Pattern.compile("You earned [\\d,]+.? from your bounty", Pattern.CASE_INSENSITIVE);
@@ -170,7 +170,7 @@ public class TrapAvoider {
             if (!currentTrappersInPlace.isEmpty()) {
                 MinecraftClient client = MinecraftClient.getInstance();
                 if (client.player != null) {
-                    StringBuilder sb = new StringBuilder("§9[WBUTILS] §cYou died while in a trap! §7Players in trapper place: ");
+                    StringBuilder sb = new StringBuilder("§9[WBUtils] §cYou died while in a trap! §7Players in trapper place: ");
                     for (int i = 0; i < currentTrappersInPlace.size(); i++) {
                         sb.append("§b").append(currentTrappersInPlace.get(i));
                         if (i < currentTrappersInPlace.size() - 1) {
